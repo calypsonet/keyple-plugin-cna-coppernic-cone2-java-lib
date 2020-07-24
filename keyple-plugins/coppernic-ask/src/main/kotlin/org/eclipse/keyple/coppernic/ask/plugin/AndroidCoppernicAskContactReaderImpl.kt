@@ -9,6 +9,8 @@ import org.eclipse.keyple.core.seproxy.protocol.SeProtocol
 import org.eclipse.keyple.core.seproxy.protocol.TransmissionMode
 import org.eclipse.keyple.core.util.ByteArrayUtil
 import timber.log.Timber
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 
 
 /**
@@ -16,6 +18,9 @@ import timber.log.Timber
  */
 internal class AndroidCoppernicAskContactReaderImpl(val contactInterface: ContactInterface): AbstractLocalReader(AndroidCoppernicAskPlugin.PLUGIN_NAME, "${AndroidCoppernicAskContactReader.READER_NAME}_${contactInterface.slotId}"), AndroidCoppernicAskContactReader{
 
+    private val parameters: MutableMap<String, String> = ConcurrentHashMap()
+
+    //private val isPhysicalChannelOpened= AtomicBoolean(false)
 
     public enum class ContactInterface(val slotId: Byte){
         ONE(1.toByte()), TWO(2.toByte())
@@ -26,30 +31,6 @@ internal class AndroidCoppernicAskContactReaderImpl(val contactInterface: Contac
     private val apduOut = ByteArray(260)
     private val apduOutLen = IntArray(1)
     var atr: ByteArray? = null
-
-    override fun transmitApdu(apduIn: ByteArray): ByteArray {
-        Timber.d("Data Length to be sent to tag : ${apduIn?.size}")
-        Timber.d("Data In : ${ByteArrayUtil.toHex(apduIn)}")
-        try {
-            AskReader.acquireLock()
-            val result = reader.cscIsoCommandSam(apduIn, apduIn.size, apduOut, apduOutLen)
-            if (result != Defines.RCSC_Ok) {
-                throw KeypleReaderIOException("cscIsoCommandSam failde with code: $result")
-            } else {
-                if (apduOutLen[0] >= 2) {
-                    val apduAnswer = ByteArray(apduOutLen[0]);
-                    System.arraycopy(apduOut, 0, apduAnswer, 0, apduAnswer.size);
-                    Timber.d("Data Out : ${ByteArrayUtil.toHex(apduAnswer)}")
-                    return apduAnswer
-                } else {
-                    throw KeypleReaderIOException("Empty Answer")
-                }
-            }
-        } finally {
-            AskReader.releaseLock()
-        }
-    }
-
 
     override fun getATR(): ByteArray? {
        return atr
@@ -63,10 +44,18 @@ internal class AndroidCoppernicAskContactReaderImpl(val contactInterface: Contac
             if(result != RCSC_Ok){
                 throw KeypleReaderIOException("Could select SAM slot")
             }
-            atr = ByteArray(256)
+            val atr = ByteArray(256)
             val atrLength = IntArray(1)
-            reader.cscResetSam(contactInterface.slotId, atr, atrLength)
-            Timber.i("SAM ATR: %s", CpcBytes.byteArrayToString(atr, atrLength[0]))
+            val ret = reader.cscResetSam(contactInterface.slotId, atr, atrLength)
+            if(ret == RCSC_Ok){
+                this.atr = ByteArray(atrLength[0])
+                System.arraycopy(atr, 0, this.atr, 0, atrLength[0]);
+                Timber.i("SAM ATR: ${CpcBytes.byteArrayToString(atr, atrLength[0])}")
+            }else{
+                this.atr = null
+            }
+
+            //isPhysicalChannelOpened.set(true);
         }finally {
             AskReader.releaseLock()
         }
@@ -107,7 +96,28 @@ internal class AndroidCoppernicAskContactReaderImpl(val contactInterface: Contac
         atr = null
     }
 
-
+    override fun transmitApdu(apduIn: ByteArray): ByteArray {
+        Timber.d("Data Length to be sent to tag : ${apduIn?.size}")
+        Timber.d("Data In : ${ByteArrayUtil.toHex(apduIn)}")
+        try {
+            AskReader.acquireLock()
+            val result = reader.cscIsoCommandSam(apduIn, apduIn.size, apduOut, apduOutLen)
+            if (result != Defines.RCSC_Ok) {
+                throw KeypleReaderIOException("cscIsoCommandSam failde with code: $result")
+            } else {
+                if (apduOutLen[0] >= 2) {
+                    val apduAnswer = ByteArray(apduOutLen[0]);
+                    System.arraycopy(apduOut, 0, apduAnswer, 0, apduAnswer.size);
+                    Timber.d("Data Out : ${ByteArrayUtil.toHex(apduAnswer)}")
+                    return apduAnswer
+                } else {
+                    throw KeypleReaderIOException("Empty Answer")
+                }
+            }
+        } finally {
+            AskReader.releaseLock()
+        }
+    }
 
 //    /**
 //     * Returns sam slot set within parameters.
