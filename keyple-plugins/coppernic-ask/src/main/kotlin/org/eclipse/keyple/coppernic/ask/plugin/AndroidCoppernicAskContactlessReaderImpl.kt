@@ -5,6 +5,7 @@ import fr.coppernic.sdk.ask.RfidTag
 import fr.coppernic.sdk.ask.sCARD_SearchExt
 import org.eclipse.keyple.core.seproxy.exception.KeypleReaderIOException
 import org.eclipse.keyple.core.seproxy.plugin.local.*
+import org.eclipse.keyple.core.seproxy.plugin.local.monitoring.CardAbsentPingMonitoringJob
 import org.eclipse.keyple.core.seproxy.plugin.local.monitoring.SmartInsertionMonitoringJob
 import org.eclipse.keyple.core.seproxy.plugin.local.monitoring.SmartRemovalMonitoringJob
 import org.eclipse.keyple.core.seproxy.plugin.local.state.WaitForSeInsertion
@@ -14,13 +15,20 @@ import org.eclipse.keyple.core.seproxy.plugin.local.state.WaitForStartDetect
 import org.eclipse.keyple.core.seproxy.protocol.SeProtocol
 import org.eclipse.keyple.core.seproxy.protocol.TransmissionMode
 import timber.log.Timber
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 
-internal object AndroidCoppernicAskContactlessReaderImpl: AbstractObservableLocalReader(AndroidCoppernicAskPlugin.PLUGIN_NAME,
+/**
+ * Implementation of {@link org.eclipse.keyple.core.seproxy.SeReader} to communicate with NFC Tag
+ * using ASK Coppernic library
+ */
+object AndroidCoppernicAskContactlessReaderImpl: AbstractObservableLocalReader(AndroidCoppernicAskPlugin.PLUGIN_NAME,
     AndroidCoppernicAskContactlessReader.READER_NAME), AndroidCoppernicAskContactlessReader,
-    SmartInsertionReader, SmartRemovalReader {
+    SmartInsertionReader{
 
+    private val parameters: MutableMap<String, String> = ConcurrentHashMap()
     private val reader = AskReader.getInstance()
 
     // RFID tag information returned when card is detected
@@ -30,19 +38,32 @@ internal object AndroidCoppernicAskContactlessReaderImpl: AbstractObservableLoca
     // Physical channel is irrelevant for ASK reader
     private val isPhysicalChannelOpened = AtomicBoolean(false)
 
+    // This boolean indicates that a card has been discovered
+    private val isCardDiscovered = AtomicBoolean(false)
+    private val isWaitingForCard = AtomicBoolean(false)
+    private val executorService = Executors.newSingleThreadExecutor()
+
+    init {
+        Timber.d("init")
+        // We set parameters to default values
+        parameters[AndroidCoppernicAskContactlessReader.CHECK_FOR_ABSENCE_TIMEOUT_KEY] = AndroidCoppernicAskContactlessReader.CHECK_FOR_ABSENCE_TIMEOUT_DEFAULT;
+        parameters[AndroidCoppernicAskContactlessReader.THREAD_WAIT_TIMEOUT_KEY] = AndroidCoppernicAskContactlessReader.THREAD_WAIT_TIMEOUT_DEFAULT;
+        // Gets ASK reader instance
+        this.stateService = initStateService()
+    }
+
     /**
      * Initialization of the state machine system for Observable reader
      * We have to set All 4 states of monitoring states
      */
     override fun initStateService(): ObservableReaderStateService {
-
+        Timber.d("initStateService")
         val states = HashMap<AbstractObservableState.MonitoringState, AbstractObservableState>(4)
 
         states[AbstractObservableState.MonitoringState.WAIT_FOR_START_DETECTION] = WaitForStartDetect(this)
-        states[AbstractObservableState.MonitoringState.WAIT_FOR_SE_INSERTION] = WaitForSeInsertion(this, SmartInsertionMonitoringJob(this), null)
+        states[AbstractObservableState.MonitoringState.WAIT_FOR_SE_INSERTION] = WaitForSeInsertion(this, SmartInsertionMonitoringJob(this), executorService)
         states[AbstractObservableState.MonitoringState.WAIT_FOR_SE_PROCESSING] = WaitForSeProcessing(this)
-        //states[AbstractObservableState.MonitoringState.WAIT_FOR_SE_REMOVAL] = WaitForSeRemoval(this, SmartRemovalMonitoringJob(this), null) //FIXME
-        states[AbstractObservableState.MonitoringState.WAIT_FOR_SE_REMOVAL] = WaitForSeRemoval(this)
+        states[AbstractObservableState.MonitoringState.WAIT_FOR_SE_REMOVAL] = WaitForSeRemoval(this, CardAbsentPingMonitoringJob(this), executorService)
 
         return ObservableReaderStateService(this, states, AbstractObservableState.MonitoringState.WAIT_FOR_START_DETECTION);
     }
@@ -52,12 +73,12 @@ internal object AndroidCoppernicAskContactlessReaderImpl: AbstractObservableLoca
     }
 
     override fun checkSePresence(): Boolean {
-        TODO("Not yet implemented")
+        return isCardDiscovered.get()
     }
 
 
     override fun setParameter(key: String, value: String) {
-        parameters[key] = value
+        parameters[key]=value
     }
 
     override fun getATR(): ByteArray? {
@@ -69,29 +90,59 @@ internal object AndroidCoppernicAskContactlessReaderImpl: AbstractObservableLoca
     }
 
     override fun openPhysicalChannel() {
+        Timber.d("openPhysicalChannel")
         isPhysicalChannelOpened.set(true)
     }
 
     override fun closePhysicalChannel() {
+        Timber.d("closePhysicalChannel")
         isPhysicalChannelOpened.set(false)
     }
 
     override fun isPhysicalChannelOpen(): Boolean {
-        return isPhysicalChannelOpen
+        Timber.d("isPhysicalChannelOpen: ${isPhysicalChannelOpened.get()}")
+        return isPhysicalChannelOpened.get()
     }
 
     override fun getTransmissionMode(): TransmissionMode {
         return TransmissionMode.CONTACTLESS
     }
 
+
     /**
      * For SmartInsertionReader
      */
     override fun waitForCardPresent(): Boolean {
         Timber.d("waitForCardPresent")
+        var ret = false
+        isWaitingForCard.set(true)
+        AskReader.acquireLock()
+        // Entering a loop with successive hunts for card
+        while (isWaitingForCard.get()) {
+            val rfidTag = enterHuntPhase()
+            if (rfidTag.communicationMode != RfidTag.CommunicationMode.Unknown) {
+                this.rfidTag = rfidTag
+                isCardDiscovered.set(true)
+                isWaitingForCard.set(false)
+                // This allows synchronisation with PLugin when powering off the reader
+                ret = true
+            }
+        }
+        // This allows synchronisation with Plugin when powering off the reader
+        AskReader.releaseLock()
+        return ret
+    }
+
+    override fun stopWaitForCard() {
+        Timber.d("stopWaitForCard")
+        isWaitingForCard.set(false)
+    }
+    /***/
+
+    private fun enterHuntPhase(): RfidTag{
+        Timber.d("enterHuntPhase")
         try{
             AskReader.acquireLock()
-            // 1 - Sets the enter hunt phase parameters to no select application
             // 1 - Sets the enter hunt phase parameters to no select application
             reader.cscEnterHuntPhaseParameters(
                 0x01.toByte(),
@@ -134,10 +185,9 @@ internal object AndroidCoppernicAskContactlessReaderImpl: AbstractObservableLoca
                 atr
             )
 
-            val rfidTag: RfidTag
-            rfidTag =
-                if (ret == Defines.RCSC_Timeout || com[0] == 0x6F.toByte() || com[0] == 0x00.toByte()) {
+            return if (ret == Defines.RCSC_Timeout || com[0] == 0x6F.toByte() || com[0] == 0x00.toByte()) {
                     Timber.w("Timeout type result")
+                    isCardDiscovered.set(false)
                     RfidTag(0x6F.toByte(), ByteArray(0))
                 } else {
                     val correctSizedAtr = ByteArray(lpcbAtr[0])
@@ -145,38 +195,13 @@ internal object AndroidCoppernicAskContactlessReaderImpl: AbstractObservableLoca
                     Timber.d("RFID Tag built ${com[0]} $correctSizedAtr")
                     RfidTag(com[0], correctSizedAtr)
                 }
-
-            return if(rfidTag.communicationMode != RfidTag.CommunicationMode.Unknown){
-                Timber.d("RFID Tag communication mode ${rfidTag.communicationMode.name}")
-                this.rfidTag = rfidTag;
-                true;
-            }else {
-                Timber.w("RFID Tag communication mode unknown")
-                false;
-            }
         }finally {
             AskReader.releaseLock()
         }
     }
 
-    override fun stopWaitForCard() {
-        reader.stopDiscovery()
-    }
-    /***/
-
-    /**
-     * For SmartRemovalReader
-     */
-    override fun waitForCardAbsentNative(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun stopWaitForCardRemoval() {
-        TODO("Not yet implemented")
-    }
-    /***/
-
     override fun transmitApdu(apduIn: ByteArray): ByteArray {
+        Timber.d("enterHuntPhase")
         try{
             AskReader.acquireLock()
             val dataReceived = ByteArray(256)
