@@ -11,6 +11,7 @@
  ********************************************************************************/
 package org.eclipse.keyple.coppernic.ask.example.activity
 
+import android.content.DialogInterface
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.appcompat.app.ActionBarDrawerToggle
@@ -48,7 +49,8 @@ import org.eclipse.keyple.core.seproxy.message.ChannelControl
 import org.eclipse.keyple.core.seproxy.protocol.SeCommonProtocols
 import timber.log.Timber
 
-abstract class AbstractExampleActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener, ObservableReader.ReaderObserver {
+abstract class AbstractExampleActivity : AppCompatActivity(),
+    NavigationView.OnNavigationItemSelectedListener, ObservableReader.ReaderObserver {
 
     /**
      * Use to modify event update behaviour reguarding current use case execution
@@ -82,7 +84,13 @@ abstract class AbstractExampleActivity : AppCompatActivity(), NavigationView.OnN
          * Init menu
          */
         navigationView.setNavigationItemSelectedListener(this)
-        val toggle = ActionBarDrawerToggle(this, drawerLayout, toolbar, R.string.open_navigation_drawer, R.string.close_navigation_drawer)
+        val toggle = ActionBarDrawerToggle(
+            this,
+            drawerLayout,
+            toolbar,
+            R.string.open_navigation_drawer,
+            R.string.close_navigation_drawer
+        )
         drawerLayout.addDrawerListener(toggle)
         toggle.syncState()
 
@@ -98,11 +106,17 @@ abstract class AbstractExampleActivity : AppCompatActivity(), NavigationView.OnN
         actionBar?.subtitle = subtitle
     }
 
-    protected fun showAlertDialog(t: Throwable) {
+    protected fun showAlertDialog(t: Throwable, finish: Boolean = false, cancelable: Boolean = true) {
         val builder = AlertDialog.Builder(this@AbstractExampleActivity)
         builder.setTitle(R.string.alert_dialog_title)
         builder.setMessage(getString(R.string.alert_dialog_message, t.message))
+        if(finish){
+            builder.setNegativeButton(R.string.quit) { _, _ ->
+                finish()
+            }
+        }
         val dialog = builder.create()
+        dialog.setCancelable(cancelable)
         dialog.show()
     }
 
@@ -129,7 +143,11 @@ abstract class AbstractExampleActivity : AppCompatActivity(), NavigationView.OnN
         Timber.d("Result: %s", message)
     }
 
-    protected fun addChoiceEvent(title: String, choices: List<String>, callback: (choice: String) -> Unit) {
+    protected fun addChoiceEvent(
+        title: String,
+        choices: List<String>,
+        callback: (choice: String) -> Unit
+    ) {
         events.add(ChoiceEventModel(title, choices, callback))
         updateList()
         Timber.d("Choice: %s: %s", title, choices.toString())
@@ -142,6 +160,7 @@ abstract class AbstractExampleActivity : AppCompatActivity(), NavigationView.OnN
             eventRecyclerView.smoothScrollToPosition(events.size - 1)
         }
     }
+
     abstract fun initContentView()
     abstract fun initReaders()
 
@@ -153,13 +172,15 @@ abstract class AbstractExampleActivity : AppCompatActivity(), NavigationView.OnN
          */
         val samSelection = SeSelection(MultiSeRequestProcessing.FIRST_MATCH)
 
-        val samSelector = SamSelector.builder().seProtocol(SeCommonProtocols.PROTOCOL_ISO7816_3).samRevision(SamRevision.C1).build()
+        val samSelector = SamSelector.builder().seProtocol(SeCommonProtocols.PROTOCOL_ISO7816_3)
+            .samRevision(SamRevision.C1).build()
 
         samSelection.prepareSelection(SamSelectionRequest(samSelector))
 
         return try {
             if (samReader.isSePresent) {
-                val calypsoSam = samSelection.processExplicitSelection(samReader).activeMatchingSe as CalypsoSam
+                val calypsoSam =
+                    samSelection.processExplicitSelection(samReader).activeMatchingSe as CalypsoSam
                 SeResource<CalypsoSam>(samReader, calypsoSam)
             } else {
                 addResultEvent("Error: Sam is not present in the reader")
@@ -185,9 +206,18 @@ abstract class AbstractExampleActivity : AppCompatActivity(), NavigationView.OnN
 
         /* define the security parameters to provide when creating PoTransaction */
         return PoSecuritySettings.PoSecuritySettingsBuilder(samResource) //
-            .sessionDefaultKif(PoTransaction.SessionSetting.AccessLevel.SESSION_LVL_PERSO, DEFAULT_KIF_PERSO) //
-            .sessionDefaultKif(PoTransaction.SessionSetting.AccessLevel.SESSION_LVL_LOAD, DEFAULT_KIF_LOAD) //
-            .sessionDefaultKif(PoTransaction.SessionSetting.AccessLevel.SESSION_LVL_DEBIT, DEFAULT_KIF_DEBIT) //
+            .sessionDefaultKif(
+                PoTransaction.SessionSetting.AccessLevel.SESSION_LVL_PERSO,
+                DEFAULT_KIF_PERSO
+            ) //
+            .sessionDefaultKif(
+                PoTransaction.SessionSetting.AccessLevel.SESSION_LVL_LOAD,
+                DEFAULT_KIF_LOAD
+            ) //
+            .sessionDefaultKif(
+                PoTransaction.SessionSetting.AccessLevel.SESSION_LVL_DEBIT,
+                DEFAULT_KIF_DEBIT
+            ) //
             .sessionDefaultKeyRecordNumber(
                 PoTransaction.SessionSetting.AccessLevel.SESSION_LVL_PERSO,
                 DEFAULT_KEY_RECORD_NUMBER_PERSO

@@ -21,9 +21,11 @@ import fr.coppernic.sdk.power.impl.cone.ConePeripheral
 import fr.coppernic.sdk.utils.core.CpcResult
 import kotlinx.android.synthetic.main.activity_main.drawerLayout
 import kotlinx.android.synthetic.main.activity_main.toolbar
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineScope
 import org.eclipse.keyple.calypso.command.po.exception.CalypsoPoCommandException
 import org.eclipse.keyple.calypso.command.sam.exception.CalypsoSamCommandException
 import org.eclipse.keyple.calypso.transaction.CalypsoPo
@@ -43,10 +45,12 @@ import org.eclipse.keyple.core.seproxy.MultiSeRequestProcessing
 import org.eclipse.keyple.core.seproxy.SeProxyService
 import org.eclipse.keyple.core.seproxy.SeReader
 import org.eclipse.keyple.core.seproxy.SeSelector
+import org.eclipse.keyple.core.seproxy.PluginFactory
 import org.eclipse.keyple.core.seproxy.event.AbstractDefaultSelectionsResponse
 import org.eclipse.keyple.core.seproxy.event.ObservableReader
 import org.eclipse.keyple.core.seproxy.event.ReaderEvent
 import org.eclipse.keyple.core.seproxy.exception.KeypleReaderException
+import org.eclipse.keyple.core.seproxy.exception.KeypleReaderIOException
 import org.eclipse.keyple.core.seproxy.protocol.SeCommonProtocols
 import org.eclipse.keyple.core.util.ByteArrayUtil
 import timber.log.Timber
@@ -55,7 +59,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 class MainActivity : AbstractExampleActivity(), PowerListener {
 
-    private lateinit var poReader: SeReader
+    private var poReader: SeReader? = null
     private lateinit var samReader: SeReader
     private lateinit var seSelection: SeSelection
 
@@ -90,18 +94,28 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
         Timber.d("initReaders");
         //Connexion to ASK lib take time, we've added a callback to this factory.
 
+        GlobalScope.launch {
+            var pluginFactory: PluginFactory?
+            try {
+                pluginFactory = withContext(Dispatchers.IO) {
+                    AndroidCoppernicAskPluginFactory.init(applicationContext)
+                }
+            } catch (e: KeypleReaderIOException) {
+                withContext(Dispatchers.Main) {
+                    showAlertDialog(e, finish = true, cancelable = false)
+                }
+                return@launch
+            }
 
-        AndroidCoppernicAskPluginFactory.init(applicationContext){
-            val askPlugin = SeProxyService.getInstance().registerPlugin(it)
+            val askPlugin = SeProxyService.getInstance().registerPlugin(pluginFactory)
             poReader = askPlugin.getReader(AndroidCoppernicAskContactlessReader.READER_NAME)
-            (poReader as ObservableReader).addObserver(this)
+            (poReader as ObservableReader).addObserver(this@MainActivity)
             //(poReader as ObservableReader).addSeProtocolSetting(SeCommonProtocols.PROTOCOL_ISO14443_4, AndroidNfcProtocolSettings.getSetting(SeCommonProtocols.PROTOCOL_ISO14443_4))
             samReader = askPlugin.readers.toList().first().second //FIXME: Select the slot?
 
             areReadersInitialized.set(true)
 
             (poReader as AndroidCoppernicAskContactlessReaderImpl).startSeDetection(ObservableReader.PollingMode.REPEATING)
-
         }
 
 //        // Configuration of AndroidNfc Reader
@@ -126,21 +140,23 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
         addActionEvent("Enabling NFC Reader mode")
         //poReader.enableNFCReaderMode(this)
         addResultEvent("Please choose a use case")
-        if(areReadersInitialized.get()){
+        if (areReadersInitialized.get()) {
             (poReader as AndroidCoppernicAskContactlessReaderImpl).startSeDetection(ObservableReader.PollingMode.REPEATING)
         }
     }
 
     override fun onPause() {
         addActionEvent("Stopping PO Read Write Mode")
-        if(areReadersInitialized.get()){
+        if (areReadersInitialized.get()) {
             (poReader as AndroidCoppernicAskContactlessReaderImpl).stopSeDetection()
         }
         super.onPause()
     }
 
     override fun onDestroy() {
-        (poReader as ObservableReader).removeObserver(this)
+        poReader?.let {
+            (poReader as ObservableReader).removeObserver(this)
+        }
         // Releases PowerManager
         PowerManager.get().unregisterAll()
         PowerManager.get().releaseResources()
@@ -196,14 +212,21 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
             seSelection = SeSelection(MultiSeRequestProcessing.FIRST_MATCH)
 
             /* Calypso selection: configures a PoSelector with all the desired attributes to make the selection and read additional information afterwards */
-            val poSelectionRequest = PoSelectionRequest(PoSelector.builder()
-                .seProtocol(SeCommonProtocols.PROTOCOL_ISO14443_4)
-                .aidSelector(SeSelector.AidSelector.builder().aidToSelect(CalypsoClassicInfo.AID).build())
-                .invalidatedPo(PoSelector.InvalidatedPo.REJECT).build())
+            val poSelectionRequest = PoSelectionRequest(
+                PoSelector.builder()
+                    .seProtocol(SeCommonProtocols.PROTOCOL_ISO14443_4)
+                    .aidSelector(
+                        SeSelector.AidSelector.builder().aidToSelect(CalypsoClassicInfo.AID).build()
+                    )
+                    .invalidatedPo(PoSelector.InvalidatedPo.REJECT).build()
+            )
 
             /* Prepare the reading order and keep the associated parser for later use once the
              selection has been made. */
-            poSelectionRequest.prepareReadRecordFile(CalypsoClassicInfo.SFI_EnvironmentAndHolder, CalypsoClassicInfo.RECORD_NUMBER_1.toInt())
+            poSelectionRequest.prepareReadRecordFile(
+                CalypsoClassicInfo.SFI_EnvironmentAndHolder,
+                CalypsoClassicInfo.RECORD_NUMBER_1.toInt()
+            )
 
             /*
              * Add the selection case to the current selection (we could have added other cases
@@ -215,8 +238,10 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
             * Provide the SeReader with the selection operation to be processed when a PO is
             * inserted.
             */
-            (poReader as ObservableReader).setDefaultSelectionRequest(seSelection.selectionOperation,
-                ObservableReader.NotificationMode.MATCHED_ONLY)
+            (poReader as ObservableReader).setDefaultSelectionRequest(
+                seSelection.selectionOperation,
+                ObservableReader.NotificationMode.MATCHED_ONLY
+            )
 
             useCase = object : UseCase {
                 override fun onEventUpdate(event: ReaderEvent?) {
@@ -272,7 +297,10 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
         runPoReadTransaction(selectionsResponse, false)
     }
 
-    private fun runPoReadTransaction(selectionsResponse: AbstractDefaultSelectionsResponse, withSam: Boolean) {
+    private fun runPoReadTransaction(
+        selectionsResponse: AbstractDefaultSelectionsResponse,
+        withSam: Boolean
+    ) {
         try {
             /*
              * print tag info in View
@@ -287,10 +315,15 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
                 /*
                  * Retrieve the data read from the parser updated during the selection process
                  */
-                val efEnvironmentHolder = calypsoPo.getFileBySfi(CalypsoClassicInfo.SFI_EnvironmentAndHolder)
+                val efEnvironmentHolder =
+                    calypsoPo.getFileBySfi(CalypsoClassicInfo.SFI_EnvironmentAndHolder)
                 addActionEvent("Read environment and holder data")
 
-                addResultEvent("Environment and Holder file: ${ByteArrayUtil.toHex(efEnvironmentHolder.data.content)}")
+                addResultEvent(
+                    "Environment and Holder file: ${ByteArrayUtil.toHex(
+                        efEnvironmentHolder.data.content
+                    )}"
+                )
 
                 addHeaderEvent("2nd PO exchange: read the event log file")
 
@@ -307,9 +340,15 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
                  * Prepare the reading order and keep the associated parser for later use once the
                  * transaction has been processed.
                  */
-                poTransaction.prepareReadRecordFile(CalypsoClassicInfo.SFI_EventLog, CalypsoClassicInfo.RECORD_NUMBER_1.toInt())
+                poTransaction.prepareReadRecordFile(
+                    CalypsoClassicInfo.SFI_EventLog,
+                    CalypsoClassicInfo.RECORD_NUMBER_1.toInt()
+                )
 
-                poTransaction.prepareReadRecordFile(CalypsoClassicInfo.SFI_Counter1, CalypsoClassicInfo.RECORD_NUMBER_1.toInt())
+                poTransaction.prepareReadRecordFile(
+                    CalypsoClassicInfo.SFI_Counter1,
+                    CalypsoClassicInfo.RECORD_NUMBER_1.toInt()
+                )
 
                 /*
                  * Actual PO communication: send the prepared read order, then close the channel
@@ -335,7 +374,13 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
                     poTransaction.processPoCommands()
                     //poTransaction.processClosing() //?
                     addResultEvent("Counter value: ${readCounter(selectionsResult)}")
-                    addResultEvent("EventLog file: ${ByteArrayUtil.toHex(readEventLog(selectionsResult))}")
+                    addResultEvent(
+                        "EventLog file: ${ByteArrayUtil.toHex(
+                            readEventLog(
+                                selectionsResult
+                            )
+                        )}"
+                    )
                 }
 
                 addResultEvent("End of the Calypso PO processing.")
@@ -378,7 +423,10 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
         runPoReadWriteTransaction(selectionsResponse, TransactionType.DECREASE)
     }
 
-    private fun runPoReadWriteTransaction(selectionsResponse: AbstractDefaultSelectionsResponse, transactionType: TransactionType) {
+    private fun runPoReadWriteTransaction(
+        selectionsResponse: AbstractDefaultSelectionsResponse,
+        transactionType: TransactionType
+    ) {
         try {
             //addResultEvent("Tag Id : ${poReader.printTagId()}")
 
@@ -395,7 +443,8 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
                 val calypsoPo = selectionsResult.activeMatchingSe as CalypsoPo
                 addResultEvent("AID: ${ByteArrayUtil.fromHex(CalypsoClassicInfo.AID)}")
 
-                val poTransaction = PoTransaction(SeResource(poReader, calypsoPo), getSecuritySettings(samResource))
+                val poTransaction =
+                    PoTransaction(SeResource(poReader, calypsoPo), getSecuritySettings(samResource))
 
                 when (transactionType) {
                     TransactionType.INCREASE -> {
@@ -406,10 +455,17 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
                         poTransaction.processOpening(PoTransaction.SessionSetting.AccessLevel.SESSION_LVL_LOAD)
                         addResultEvent("Opening session: SUCCESS")
 
-                        poTransaction.prepareReadRecordFile(CalypsoClassicInfo.SFI_Counter1, CalypsoClassicInfo.RECORD_NUMBER_1.toInt())
+                        poTransaction.prepareReadRecordFile(
+                            CalypsoClassicInfo.SFI_Counter1,
+                            CalypsoClassicInfo.RECORD_NUMBER_1.toInt()
+                        )
                         poTransaction.processPoCommands()
 
-                        poTransaction.prepareIncreaseCounter(CalypsoClassicInfo.SFI_Counter1, CalypsoClassicInfo.RECORD_NUMBER_1.toInt(), 10)
+                        poTransaction.prepareIncreaseCounter(
+                            CalypsoClassicInfo.SFI_Counter1,
+                            CalypsoClassicInfo.RECORD_NUMBER_1.toInt(),
+                            10
+                        )
                         addActionEvent("Process PO increase counter by 10")
                         poTransaction.processClosing()
                         addResultEvent("Increase by 10: SUCCESS")
@@ -422,13 +478,20 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
                         poTransaction.processOpening(PoTransaction.SessionSetting.AccessLevel.SESSION_LVL_DEBIT)
                         addResultEvent("Opening session: SUCCESS")
 
-                        poTransaction.prepareReadRecordFile(CalypsoClassicInfo.SFI_Counter1, CalypsoClassicInfo.RECORD_NUMBER_1.toInt())
+                        poTransaction.prepareReadRecordFile(
+                            CalypsoClassicInfo.SFI_Counter1,
+                            CalypsoClassicInfo.RECORD_NUMBER_1.toInt()
+                        )
                         poTransaction.processPoCommands()
 
                         /*
                              * A ratification command will be sent (CONTACTLESS_MODE).
                              */
-                        poTransaction.prepareDecreaseCounter(CalypsoClassicInfo.SFI_Counter1, CalypsoClassicInfo.RECORD_NUMBER_1.toInt(), 1)
+                        poTransaction.prepareDecreaseCounter(
+                            CalypsoClassicInfo.SFI_Counter1,
+                            CalypsoClassicInfo.RECORD_NUMBER_1.toInt(),
+                            1
+                        )
                         addActionEvent("Process PO decreasing counter and close transaction")
                         poTransaction.processClosing()
                         addResultEvent("Decrease by 1: SUCCESS")

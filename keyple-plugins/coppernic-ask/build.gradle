@@ -106,14 +106,14 @@ artifacts {
 task installPlugin{
     group 'keyple'
 description 'Builds and installs the Keyple Coppernic ASK plugin into maven local repository'
-    dependsOn ':keyple-plugins:coppernic-ask'
+    dependsOn ':keyple-plugins:coppernic-ask:uploadArchives'
 }
 
 dependencies {
 
     api 'fr.coppernic.sdk.ask:CpcAsk:3.5.9-keyple'
-    api 'fr.coppernic.sdk.core:CpcCore:1.8.16'
-    api 'fr.coppernic.sdk.cpcutils:CpcUtilsLib:6.18.4'
+    api 'fr.coppernic.sdk.core:CpcCore:1.9.0'
+    api 'fr.coppernic.sdk.cpcutils:CpcUtilsLib:6.19.0'
 
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation "androidx.appcompat:appcompat:$appcompat_version"
@@ -136,4 +136,12 @@ dependencies {
     testImplementation files('libs/lib-secommunication-1.7.0.jar')
     /** Mocking for tests **/
     testImplementation "io.mockk:mockk:$mockk_version"
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            repository(url: mavenLocal().url)
+        }
+    }
 }
