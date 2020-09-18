@@ -19,8 +19,11 @@ import fr.coppernic.sdk.power.api.PowerListener
 import fr.coppernic.sdk.power.api.peripheral.Peripheral
 import fr.coppernic.sdk.power.impl.cone.ConePeripheral
 import fr.coppernic.sdk.utils.core.CpcResult
-import kotlinx.android.synthetic.main.activity_main.*
-import kotlinx.coroutines.*
+import kotlinx.android.synthetic.main.activity_main.drawerLayout
+import kotlinx.android.synthetic.main.activity_main.toolbar
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.eclipse.keyple.calypso.command.po.exception.CalypsoPoCommandException
 import org.eclipse.keyple.calypso.command.sam.exception.CalypsoSamCommandException
 import org.eclipse.keyple.calypso.transaction.CalypsoPo
@@ -36,7 +39,10 @@ import org.eclipse.keyple.coppernic.ask.plugin.AndroidCoppernicAskPluginFactory
 import org.eclipse.keyple.core.selection.SeResource
 import org.eclipse.keyple.core.selection.SeSelection
 import org.eclipse.keyple.core.selection.SelectionsResult
-import org.eclipse.keyple.core.seproxy.*
+import org.eclipse.keyple.core.seproxy.MultiSeRequestProcessing
+import org.eclipse.keyple.core.seproxy.SeProxyService
+import org.eclipse.keyple.core.seproxy.SeReader
+import org.eclipse.keyple.core.seproxy.SeSelector
 import org.eclipse.keyple.core.seproxy.event.AbstractDefaultSelectionsResponse
 import org.eclipse.keyple.core.seproxy.event.ObservableReader
 import org.eclipse.keyple.core.seproxy.event.ReaderEvent
