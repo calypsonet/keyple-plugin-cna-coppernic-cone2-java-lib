@@ -90,12 +90,12 @@ internal object AskReader {
 //     * Reset the instance
 //     * TODO: How to reuse the lib as init is only call once in factory?
 //     */
-//    public fun clearInstance(){
-//        getInstance()?.let{
-//            uniqueInstance?.get()?.destroy()
-//            uniqueInstance = null;
-//        }
-//    }
+    public fun clearInstance(){
+        getInstance().let{
+            uniqueInstance.get()?.destroy()
+            uniqueInstance.clear()
+        }
+    }
 
     /**
      * Lock to synchronize reader exchanges

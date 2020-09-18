@@ -4,7 +4,7 @@ import fr.coppernic.sdk.ask.Defines
 import fr.coppernic.sdk.ask.Defines.RCSC_Ok
 import fr.coppernic.sdk.utils.core.CpcBytes
 import org.eclipse.keyple.core.seproxy.exception.KeypleReaderIOException
-import org.eclipse.keyple.core.seproxy.plugin.local.AbstractLocalReader
+import org.eclipse.keyple.core.seproxy.plugin.reader.AbstractLocalReader
 import org.eclipse.keyple.core.seproxy.protocol.SeProtocol
 import org.eclipse.keyple.core.seproxy.protocol.TransmissionMode
 import org.eclipse.keyple.core.util.ByteArrayUtil
@@ -96,6 +96,10 @@ internal class AndroidCoppernicAskContactReaderImpl(val contactInterface: Contac
         atr = null
     }
 
+    override fun closeLogicalAndPhysicalChannels() {
+        super.closeLogicalAndPhysicalChannels()
+    }
+
     override fun transmitApdu(apduIn: ByteArray): ByteArray {
         Timber.d("Data Length to be sent to tag : ${apduIn?.size}")
         Timber.d("Data In : ${ByteArrayUtil.toHex(apduIn)}")
@@ -118,17 +122,4 @@ internal class AndroidCoppernicAskContactReaderImpl(val contactInterface: Contac
             AskReader.releaseLock()
         }
     }
-
-//    /**
-//     * Returns sam slot set within parameters.
-//     * Should be "1" or "2" else default value "1" is returned
-//     */
-//    private fun getSetSamSlot(): Byte{
-//        val samSlot =  parameters[CONTACT_INTERFACE_ID] ?: ContactInterface.ONE.slotId
-//        return try{
-//            samSlot.toInt().toByte()
-//        }catch (e: NumberFormatException){
-//            ContactInterface.ONE.slotId.toInt().toByte()
-//        }
-//    }
 }

@@ -4,14 +4,16 @@ import fr.coppernic.sdk.ask.Defines
 import fr.coppernic.sdk.ask.RfidTag
 import fr.coppernic.sdk.ask.sCARD_SearchExt
 import org.eclipse.keyple.core.seproxy.exception.KeypleReaderIOException
-import org.eclipse.keyple.core.seproxy.plugin.local.*
-import org.eclipse.keyple.core.seproxy.plugin.local.monitoring.CardAbsentPingMonitoringJob
-import org.eclipse.keyple.core.seproxy.plugin.local.monitoring.SmartInsertionMonitoringJob
-import org.eclipse.keyple.core.seproxy.plugin.local.monitoring.SmartRemovalMonitoringJob
-import org.eclipse.keyple.core.seproxy.plugin.local.state.WaitForSeInsertion
-import org.eclipse.keyple.core.seproxy.plugin.local.state.WaitForSeProcessing
-import org.eclipse.keyple.core.seproxy.plugin.local.state.WaitForSeRemoval
-import org.eclipse.keyple.core.seproxy.plugin.local.state.WaitForStartDetect
+import org.eclipse.keyple.core.seproxy.plugin.reader.AbstractObservableLocalReader
+import org.eclipse.keyple.core.seproxy.plugin.reader.AbstractObservableState
+import org.eclipse.keyple.core.seproxy.plugin.reader.CardAbsentPingMonitoringJob
+import org.eclipse.keyple.core.seproxy.plugin.reader.ObservableReaderStateService
+import org.eclipse.keyple.core.seproxy.plugin.reader.SmartInsertionMonitoringJob
+import org.eclipse.keyple.core.seproxy.plugin.reader.SmartInsertionReader
+import org.eclipse.keyple.core.seproxy.plugin.reader.WaitForSeInsertion
+import org.eclipse.keyple.core.seproxy.plugin.reader.WaitForSeProcessing
+import org.eclipse.keyple.core.seproxy.plugin.reader.WaitForSeRemoval
+import org.eclipse.keyple.core.seproxy.plugin.reader.WaitForStartDetect
 import org.eclipse.keyple.core.seproxy.protocol.SeProtocol
 import org.eclipse.keyple.core.seproxy.protocol.TransmissionMode
 import timber.log.Timber
@@ -97,6 +99,7 @@ object AndroidCoppernicAskContactlessReaderImpl: AbstractObservableLocalReader(A
     override fun closePhysicalChannel() {
         Timber.d("closePhysicalChannel")
         isPhysicalChannelOpened.set(false)
+        AskReader.clearInstance()
     }
 
     override fun isPhysicalChannelOpen(): Boolean {

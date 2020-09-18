@@ -39,12 +39,12 @@ import org.eclipse.keyple.calypso.transaction.SamSelectionRequest
 import org.eclipse.keyple.calypso.transaction.SamSelector
 import org.eclipse.keyple.core.selection.SeResource
 import org.eclipse.keyple.core.selection.SeSelection
-import org.eclipse.keyple.core.seproxy.ChannelControl
 import org.eclipse.keyple.core.seproxy.MultiSeRequestProcessing
 import org.eclipse.keyple.core.seproxy.SeReader
 import org.eclipse.keyple.core.seproxy.event.ObservableReader
 import org.eclipse.keyple.core.seproxy.event.ReaderEvent
 import org.eclipse.keyple.core.seproxy.exception.KeypleReaderException
+import org.eclipse.keyple.core.seproxy.message.ChannelControl
 import org.eclipse.keyple.core.seproxy.protocol.SeCommonProtocols
 import timber.log.Timber
 
@@ -151,7 +151,7 @@ abstract class AbstractExampleActivity : AppCompatActivity(), NavigationView.OnN
          * check the availability of the SAM doing a ATR based selection, open its physical and
          * logical channels and keep it open
          */
-        val samSelection = SeSelection(MultiSeRequestProcessing.FIRST_MATCH, ChannelControl.KEEP_OPEN)
+        val samSelection = SeSelection(MultiSeRequestProcessing.FIRST_MATCH)
 
         val samSelector = SamSelector.builder().seProtocol(SeCommonProtocols.PROTOCOL_ISO7816_3).samRevision(SamRevision.C1).build()
 

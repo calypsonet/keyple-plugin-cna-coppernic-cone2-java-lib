@@ -23,7 +23,7 @@ object AndroidCoppernicAskPluginImpl: AbstractPlugin(AndroidCoppernicAskPlugin.P
 
     override fun initNativeReaders(): ConcurrentMap<String, SeReader> {
         Timber.w("Init native readers")
-        val seReaders = ConcurrentHashMap<String, SeReader>()
+        val seReaders = ConcurrentHashMap<String, SeReader>() 
         val sam1 = AndroidCoppernicAskContactReaderImpl(AndroidCoppernicAskContactReaderImpl.ContactInterface.ONE)
         seReaders[sam1.name] = sam1
         val sam2 = AndroidCoppernicAskContactReaderImpl(AndroidCoppernicAskContactReaderImpl.ContactInterface.TWO)
