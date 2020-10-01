@@ -3,27 +3,25 @@ package org.eclipse.keyple.coppernic.ask.plugin
 import android.content.Context
 import fr.coppernic.sdk.ask.Reader
 import fr.coppernic.sdk.core.Defines
-import fr.coppernic.sdk.power.impl.cone.ConePeripheral
-import fr.coppernic.sdk.utils.core.CpcResult
 import fr.coppernic.sdk.utils.io.InstanceListener
-import io.reactivex.SingleObserver
-import io.reactivex.disposables.Disposable
-import io.reactivex.schedulers.Schedulers
+import org.eclipse.keyple.coppernic.ask.plugin.utils.suspendCoroutineWithTimeout
 import org.eclipse.keyple.core.seproxy.exception.KeypleReaderException
 import org.eclipse.keyple.core.seproxy.exception.KeypleReaderIOException
 import timber.log.Timber
-import java.lang.IllegalStateException
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
-import kotlin.coroutines.suspendCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 /**
  * Provides one instance of ASK reader to be shared between contact and contactless reader.
  */
 internal object AskReader {
 
-    lateinit var uniqueInstance : WeakReference<Reader>
+    private const val INIT_TIMEOUT: Long = 3000
+
+    lateinit var uniqueInstance: WeakReference<Reader>
     private val isInitied = AtomicBoolean(false)
 
     // Avoid timeout issue when a call to checkSePresence has been sent
@@ -34,43 +32,52 @@ internal object AskReader {
      * Init the reader, is call when instanciating this plugin's factory
      */
     @Throws(Exception::class)
-    public fun init(context: Context, callback:(success: Boolean) -> Unit) {
-        if(!isInitied.get()){
+    public suspend fun init(context: Context): Reader? {
+        if (!isInitied.get()) {
             Timber.d("Start Init")
             //val result = ConePeripheral.RFID_ASK_UCM108_GPIO.descriptor.power(context, true).blockingGet()
             //Timber.d("Powered on $result")
 
-            //TODO Co routine pour attendre le resultat de l'init
-            Reader.getInstance(context, object : InstanceListener<Reader>{
-                override fun onCreated(reader: Reader) {
-                    Timber.d("onCreated")
-                    var result = reader.cscOpen(Defines.SerialDefines.ASK_READER_PORT, 115200, false)
+            val reader: Reader? = suspendCoroutineWithTimeout(INIT_TIMEOUT) { continuation ->
+                Reader.getInstance(context, object : InstanceListener<Reader> {
+                    override fun onCreated(reader: Reader) {
+                        Timber.d("onCreated")
+                        var result =
+                            reader.cscOpen(Defines.SerialDefines.ASK_READER_PORT, 115200, false)
 
-                    if(result != fr.coppernic.sdk.ask.Defines.RCSC_Ok){
-                        throw KeypleReaderIOException("Error while cscOpen: $result");
+                        if (result != fr.coppernic.sdk.ask.Defines.RCSC_Ok) {
+                            Timber.d("Error while cscOpen: $result")
+                            continuation.resumeWithException(KeypleReaderIOException("Error while cscOpen: $result"))
+                            return
+                        }
+
+                        // Initializes reader
+                        val sb = StringBuilder()
+                        result = reader.cscVersionCsc(sb)
+
+                        if (result != fr.coppernic.sdk.ask.Defines.RCSC_Ok) {
+                            Timber.d("Error while cscVersionCsc: $result")
+                            continuation.resumeWithException(KeypleReaderIOException("Error while cscVersionCsc: $result"))
+                            return
+                        }
+
+                        uniqueInstance = WeakReference(reader)
+                        isInitied.set(true)
+                        Timber.d("End Init")
+                        continuation.resume(reader)
                     }
 
-                    // Initializes reader
-                    val sb = StringBuilder()
-                    result = reader.cscVersionCsc(sb)
-
-                    if(result != fr.coppernic.sdk.ask.Defines.RCSC_Ok){
-                        throw KeypleReaderIOException("Error while cscVersionCsc: $result");
+                    override fun onDisposed(reader: Reader) {
+                        Timber.d("onDisposed")
+                        isInitied.set(false)
+                        continuation.resume(null)
                     }
+                })
+            }
 
-                    uniqueInstance = WeakReference(reader)
-                    isInitied.set(true)
-                    Timber.d("End Init")
-                    callback(true)
-                }
-                override fun onDisposed(reader: Reader) {
-                    Timber.d("onDisposed")
-                    isInitied.set(false)
-                    callback(false)
-                }
-            })
-        }else{
-            callback(true)
+            return reader
+        } else {
+            return null
         }
     }
 
@@ -78,20 +85,20 @@ internal object AskReader {
      * Get Reader instance
      */
     @Throws(KeypleReaderException::class)
-    public fun getInstance(): Reader{
+    public fun getInstance(): Reader {
         Timber.d("Get Instance")
-        if(!isInitied.get()){
+        if (!isInitied.get()) {
             throw KeypleReaderIOException("Ask Reader not inited")
         }
         return uniqueInstance.get()!!
     }
 
-//    /**
+    //    /**
 //     * Reset the instance
 //     * TODO: How to reuse the lib as init is only call once in factory?
 //     */
-    public fun clearInstance(){
-        getInstance().let{
+    public fun clearInstance() {
+        getInstance().let {
             uniqueInstance.get()?.destroy()
             uniqueInstance.clear()
         }
@@ -100,14 +107,14 @@ internal object AskReader {
     /**
      * Lock to synchronize reader exchanges
      */
-    public fun acquireLock(){
+    public fun acquireLock() {
         isTransmitting.lock()
     }
 
     /**
      * Release Lock
      */
-    public fun releaseLock(){
+    public fun releaseLock() {
         isTransmitting.unlock()
     }
 
