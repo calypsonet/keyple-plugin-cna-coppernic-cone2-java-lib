@@ -4,8 +4,6 @@ import android.content.Context
 import fr.coppernic.sdk.ask.Reader
 import fr.coppernic.sdk.core.Defines
 import fr.coppernic.sdk.utils.io.InstanceListener
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withTimeoutOrNull
 import org.eclipse.keyple.coppernic.ask.plugin.utils.suspendCoroutineWithTimeout
 import org.eclipse.keyple.core.seproxy.exception.KeypleReaderException
 import org.eclipse.keyple.core.seproxy.exception.KeypleReaderIOException
@@ -13,9 +11,8 @@ import timber.log.Timber
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
-import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
+import kotlin.coroutines.resumeWithException
 
 /**
  * Provides one instance of ASK reader to be shared between contact and contactless reader.
@@ -49,7 +46,9 @@ internal object AskReader {
                             reader.cscOpen(Defines.SerialDefines.ASK_READER_PORT, 115200, false)
 
                         if (result != fr.coppernic.sdk.ask.Defines.RCSC_Ok) {
-                            throw KeypleReaderIOException("Error while cscOpen: $result");
+                            Timber.d("Error while cscOpen: $result")
+                            continuation.resumeWithException(KeypleReaderIOException("Error while cscOpen: $result"))
+                            return
                         }
 
                         // Initializes reader
@@ -57,7 +56,9 @@ internal object AskReader {
                         result = reader.cscVersionCsc(sb)
 
                         if (result != fr.coppernic.sdk.ask.Defines.RCSC_Ok) {
-                            throw KeypleReaderIOException("Error while cscVersionCsc: $result");
+                            Timber.d("Error while cscVersionCsc: $result")
+                            continuation.resumeWithException(KeypleReaderIOException("Error while cscVersionCsc: $result"))
+                            return
                         }
 
                         uniqueInstance = WeakReference(reader)

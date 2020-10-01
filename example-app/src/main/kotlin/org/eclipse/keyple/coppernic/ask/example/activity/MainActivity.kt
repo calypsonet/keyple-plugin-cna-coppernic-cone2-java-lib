@@ -95,7 +95,7 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
         //Connexion to ASK lib take time, we've added a callback to this factory.
 
         GlobalScope.launch {
-            var pluginFactory: PluginFactory?
+            val pluginFactory: PluginFactory?
             try {
                 pluginFactory = withContext(Dispatchers.IO) {
                     AndroidCoppernicAskPluginFactory.init(applicationContext)
