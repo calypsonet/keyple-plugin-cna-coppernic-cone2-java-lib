@@ -6,16 +6,18 @@ import fr.coppernic.sdk.ask.sCARD_SearchExt
 import org.eclipse.keyple.core.seproxy.exception.KeypleReaderIOException
 import org.eclipse.keyple.core.seproxy.plugin.reader.AbstractObservableLocalReader
 import org.eclipse.keyple.core.seproxy.plugin.reader.AbstractObservableState
-import org.eclipse.keyple.core.seproxy.plugin.reader.CardAbsentPingMonitoringJob
 import org.eclipse.keyple.core.seproxy.plugin.reader.ObservableReaderStateService
-import org.eclipse.keyple.core.seproxy.plugin.reader.SmartInsertionMonitoringJob
 import org.eclipse.keyple.core.seproxy.plugin.reader.SmartInsertionReader
+import org.eclipse.keyple.core.seproxy.plugin.reader.WaitForStartDetect
 import org.eclipse.keyple.core.seproxy.plugin.reader.WaitForSeInsertion
+import org.eclipse.keyple.core.seproxy.plugin.reader.SmartInsertionMonitoringJob
 import org.eclipse.keyple.core.seproxy.plugin.reader.WaitForSeProcessing
 import org.eclipse.keyple.core.seproxy.plugin.reader.WaitForSeRemoval
-import org.eclipse.keyple.core.seproxy.plugin.reader.WaitForStartDetect
+import org.eclipse.keyple.core.seproxy.plugin.reader.CardAbsentPingMonitoringJob
+import org.eclipse.keyple.core.seproxy.protocol.SeCommonProtocols
 import org.eclipse.keyple.core.seproxy.protocol.SeProtocol
 import org.eclipse.keyple.core.seproxy.protocol.TransmissionMode
+import org.eclipse.keyple.core.util.ByteArrayUtil
 import timber.log.Timber
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
@@ -26,7 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * Implementation of {@link org.eclipse.keyple.core.seproxy.SeReader} to communicate with NFC Tag
  * using ASK Coppernic library
  */
-object AndroidCoppernicAskContactlessReaderImpl: AbstractObservableLocalReader(AndroidCoppernicAskPlugin.PLUGIN_NAME,
+class AndroidCoppernicAskContactlessReaderImpl: AbstractObservableLocalReader(AndroidCoppernicAskPlugin.PLUGIN_NAME,
     AndroidCoppernicAskContactlessReader.READER_NAME), AndroidCoppernicAskContactlessReader,
     SmartInsertionReader{
 
@@ -71,7 +73,16 @@ object AndroidCoppernicAskContactlessReaderImpl: AbstractObservableLocalReader(A
     }
 
     override fun protocolFlagMatches(protocolFlag: SeProtocol?): Boolean {
-       return true
+        /*
+         Based on C-One2 HF ASK technical specifications
+          -> "RFID HF ASK Module: UCM108
+                13.56 MHz | ISO 14443 A/B/B’ | Felica | ISO18092 (NFC)
+                ..."
+         */
+        return protocolFlag == SeCommonProtocols.PROTOCOL_ISO14443_4 ||
+                protocolFlag == SeCommonProtocols.PROTOCOL_ISO14443_3A ||
+                protocolFlag == SeCommonProtocols.PROTOCOL_ISO14443_3B ||
+                protocolFlag == SeCommonProtocols.PROTOCOL_JIS_6319_4
     }
 
     override fun checkSePresence(): Boolean {
@@ -99,7 +110,6 @@ object AndroidCoppernicAskContactlessReaderImpl: AbstractObservableLocalReader(A
     override fun closePhysicalChannel() {
         Timber.d("closePhysicalChannel")
         isPhysicalChannelOpened.set(false)
-        AskReader.clearInstance()
     }
 
     override fun isPhysicalChannelOpen(): Boolean {
@@ -119,7 +129,7 @@ object AndroidCoppernicAskContactlessReaderImpl: AbstractObservableLocalReader(A
         Timber.d("waitForCardPresent")
         var ret = false
         isWaitingForCard.set(true)
-        AskReader.acquireLock()
+//        AskReader.acquireLock()
         // Entering a loop with successive hunts for card
         while (isWaitingForCard.get()) {
             val rfidTag = enterHuntPhase()
@@ -132,7 +142,7 @@ object AndroidCoppernicAskContactlessReaderImpl: AbstractObservableLocalReader(A
             }
         }
         // This allows synchronisation with Plugin when powering off the reader
-        AskReader.releaseLock()
+//        AskReader.releaseLock()
         return ret
     }
 
@@ -205,12 +215,16 @@ object AndroidCoppernicAskContactlessReaderImpl: AbstractObservableLocalReader(A
 
     override fun transmitApdu(apduIn: ByteArray): ByteArray {
         Timber.d("enterHuntPhase")
-        try{
+        try {
             AskReader.acquireLock()
             val dataReceived = ByteArray(256)
             val dataReceivedLength = IntArray(1)
 
+
+            Timber.d("KEYPLE-APDU-SAM - Data Length to be sent to tag : ${apduIn.size}")
+            Timber.d("KEYPLE-APDU-SAM - Data In : ${ByteArrayUtil.toHex(apduIn)}")
             reader.cscISOCommand(apduIn, apduIn.size, dataReceived, dataReceivedLength)
+            Timber.d("KEYPLE-APDU-SAM - Data Out : ${ByteArrayUtil.toHex(dataReceived)}")
 
             val length = dataReceivedLength[0]
 
@@ -222,8 +236,12 @@ object AndroidCoppernicAskContactlessReaderImpl: AbstractObservableLocalReader(A
                 return apduAnswer
             }
 
-        }finally {
+        } finally {
             AskReader.releaseLock()
         }
+    }
+
+    fun clearInstance() {
+        AskReader.clearInstance()
     }
 }

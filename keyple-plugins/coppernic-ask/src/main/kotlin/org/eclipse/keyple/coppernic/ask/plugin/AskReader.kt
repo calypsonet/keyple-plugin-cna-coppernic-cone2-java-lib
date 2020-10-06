@@ -21,7 +21,7 @@ internal object AskReader {
 
     private const val INIT_TIMEOUT: Long = 3000
 
-    lateinit var uniqueInstance: WeakReference<Reader>
+    lateinit var uniqueInstance: WeakReference<Reader?>
     private val isInitied = AtomicBoolean(false)
 
     // Avoid timeout issue when a call to checkSePresence has been sent
@@ -46,7 +46,7 @@ internal object AskReader {
                             reader.cscOpen(Defines.SerialDefines.ASK_READER_PORT, 115200, false)
 
                         if (result != fr.coppernic.sdk.ask.Defines.RCSC_Ok) {
-                            Timber.d("Error while cscOpen: $result")
+                            Timber.e("Error while cscOpen: $result")
                             continuation.resumeWithException(KeypleReaderIOException("Error while cscOpen: $result"))
                             return
                         }
@@ -56,9 +56,10 @@ internal object AskReader {
                         result = reader.cscVersionCsc(sb)
 
                         if (result != fr.coppernic.sdk.ask.Defines.RCSC_Ok) {
-                            Timber.d("Error while cscVersionCsc: $result")
-                            continuation.resumeWithException(KeypleReaderIOException("Error while cscVersionCsc: $result"))
-                            return
+                            Timber.w("Error while cscVersionCsc: $result")
+                            //TODO: Check with Coppernic why this methods fails
+//                            continuation.resumeWithException(KeypleReaderIOException("Error while cscVersionCsc: $result"))
+//                            return
                         }
 
                         uniqueInstance = WeakReference(reader)
@@ -90,17 +91,20 @@ internal object AskReader {
         if (!isInitied.get()) {
             throw KeypleReaderIOException("Ask Reader not inited")
         }
-        return uniqueInstance.get()!!
+        return uniqueInstance?.get()!!
     }
 
-    //    /**
-//     * Reset the instance
-//     * TODO: How to reuse the lib as init is only call once in factory?
-//     */
-    public fun clearInstance() {
+    /**
+     * Reset the instance
+     * TODO: How to reuse the lib as init is only call once in factory?
+     */
+    fun clearInstance() {
+        Timber.d("Clear Ask Reader instance")
         getInstance().let {
             uniqueInstance.get()?.destroy()
             uniqueInstance.clear()
+            uniqueInstance = WeakReference<Reader?>(null)
+            isInitied.set(false)
         }
     }
 
