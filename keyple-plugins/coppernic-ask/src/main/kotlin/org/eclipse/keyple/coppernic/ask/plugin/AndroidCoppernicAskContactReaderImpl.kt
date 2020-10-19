@@ -5,12 +5,12 @@ import fr.coppernic.sdk.ask.Defines.RCSC_Ok
 import fr.coppernic.sdk.utils.core.CpcBytes
 import org.eclipse.keyple.core.seproxy.exception.KeypleReaderIOException
 import org.eclipse.keyple.core.seproxy.plugin.reader.AbstractLocalReader
+import org.eclipse.keyple.core.seproxy.protocol.SeCommonProtocols
 import org.eclipse.keyple.core.seproxy.protocol.SeProtocol
 import org.eclipse.keyple.core.seproxy.protocol.TransmissionMode
 import org.eclipse.keyple.core.util.ByteArrayUtil
 import timber.log.Timber
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicBoolean
 
 
 /**
@@ -62,6 +62,9 @@ internal class AndroidCoppernicAskContactReaderImpl(val contactInterface: Contac
     }
 
     override fun setParameter(key: String, value: String) {
+        if (key == AndroidCoppernicAskContactReader.FLAG_READER_RESET_STATE) {
+            closeLogicalAndPhysicalChannels()
+        }
         parameters[key] = value
     }
 
@@ -70,7 +73,14 @@ internal class AndroidCoppernicAskContactReaderImpl(val contactInterface: Contac
     }
 
     override fun protocolFlagMatches(protocolFlag: SeProtocol?): Boolean {
-        return true
+        /*
+         Based on C-One2 HF ASK technical specifications
+          -> "RFID HF ASK Module: UCM108
+                ...
+                Supports up to 2 SAMs: ISO 7816 A,B,C, T=0, T=1, with PPS up to 1.2 Mb/s
+                ..."
+         */
+        return protocolFlag == SeCommonProtocols.PROTOCOL_ISO7816_3
     }
 
     override fun isPhysicalChannelOpen(): Boolean {
@@ -82,7 +92,7 @@ internal class AndroidCoppernicAskContactReaderImpl(val contactInterface: Contac
                 AskReader.acquireLock()
                 //val samSlot = getSetSamSlot()
                 val result = reader.cscSelectSam(contactInterface.slotId, Defines.SAM_PROT_HSP_INNOVATRON)
-                result != RCSC_Ok
+                result == RCSC_Ok
             }finally {
                 AskReader.releaseLock()
             }
@@ -96,17 +106,18 @@ internal class AndroidCoppernicAskContactReaderImpl(val contactInterface: Contac
         atr = null
     }
 
-    override fun closeLogicalAndPhysicalChannels() {
-        super.closeLogicalAndPhysicalChannels()
-    }
-
     override fun transmitApdu(apduIn: ByteArray): ByteArray {
         Timber.d("Data Length to be sent to tag : ${apduIn?.size}")
         Timber.d("Data In : ${ByteArrayUtil.toHex(apduIn)}")
         try {
             AskReader.acquireLock()
+            Timber.d("KEYPLE-APDU-SAM - Data Length to be sent to tag : ${apduIn.size}")
+            Timber.d("KEYPLE-APDU-SAM - Data In : ${ByteArrayUtil.toHex(apduIn)}")
             val result = reader.cscIsoCommandSam(apduIn, apduIn.size, apduOut, apduOutLen)
-            if (result != Defines.RCSC_Ok) {
+            Timber.d("KEYPLE-APDU-SAM - Data Out : ${ByteArrayUtil.toHex(apduOut)}")
+
+            if (result != RCSC_Ok) {
+                Timber.d("KEYPLE-APDU-SAM - throw KeypleReaderIOException")
                 throw KeypleReaderIOException("cscIsoCommandSam failde with code: $result")
             } else {
                 if (apduOutLen[0] >= 2) {

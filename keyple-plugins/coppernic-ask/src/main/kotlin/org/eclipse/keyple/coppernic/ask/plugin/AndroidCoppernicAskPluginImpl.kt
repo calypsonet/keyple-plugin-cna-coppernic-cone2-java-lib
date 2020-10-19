@@ -9,7 +9,7 @@ import java.util.concurrent.ConcurrentMap
 /**
  * Handle native Readers mapped for Keyple
  */
-object AndroidCoppernicAskPluginImpl: AbstractPlugin(AndroidCoppernicAskPlugin.PLUGIN_NAME), AndroidCoppernicAskPlugin{
+internal class AndroidCoppernicAskPluginImpl: AbstractPlugin(AndroidCoppernicAskPlugin.PLUGIN_NAME), AndroidCoppernicAskPlugin{
     private val parameters: MutableMap<String, String> = HashMap() // not in use in this plugin
 
     override fun setParameter(key: String, value: String) {
@@ -28,7 +28,7 @@ object AndroidCoppernicAskPluginImpl: AbstractPlugin(AndroidCoppernicAskPlugin.P
         seReaders[sam1.name] = sam1
         val sam2 = AndroidCoppernicAskContactReaderImpl(AndroidCoppernicAskContactReaderImpl.ContactInterface.TWO)
         seReaders[sam2.name] = sam2
-        val nfc = AndroidCoppernicAskContactlessReaderImpl
+        val nfc = AndroidCoppernicAskContactlessReaderImpl()
         seReaders[nfc.name] = nfc
         return seReaders
     }

@@ -21,6 +21,6 @@ object AndroidCoppernicAskPluginFactory : PluginFactory {
     }
 
     override fun getPlugin(): ReaderPlugin {
-        return AndroidCoppernicAskPluginImpl
+        return AndroidCoppernicAskPluginImpl()
     }
 }
