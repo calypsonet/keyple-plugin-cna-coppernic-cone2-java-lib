@@ -10,20 +10,10 @@ import java.util.concurrent.ConcurrentMap
  * Handle native Readers mapped for Keyple
  */
 internal class AndroidCoppernicAskPluginImpl: AbstractPlugin(AndroidCoppernicAskPlugin.PLUGIN_NAME), AndroidCoppernicAskPlugin{
-    private val parameters: MutableMap<String, String> = HashMap() // not in use in this plugin
-
-    override fun setParameter(key: String, value: String) {
-        Timber.w("Android C-One² Plugin does not support parameters, use reader instead")
-    }
-
-    override fun getParameters(): MutableMap<String, String> {
-        Timber.w("Android C-One² Plugin does not support parameters, use reader instead")
-        return parameters
-    }
 
     override fun initNativeReaders(): ConcurrentMap<String, SeReader> {
         Timber.w("Init native readers")
-        val seReaders = ConcurrentHashMap<String, SeReader>() 
+        val seReaders = ConcurrentHashMap<String, SeReader>()
         val sam1 = AndroidCoppernicAskContactReaderImpl(AndroidCoppernicAskContactReaderImpl.ContactInterface.ONE)
         seReaders[sam1.name] = sam1
         val sam2 = AndroidCoppernicAskContactReaderImpl(AndroidCoppernicAskContactReaderImpl.ContactInterface.TWO)
@@ -32,6 +22,4 @@ internal class AndroidCoppernicAskPluginImpl: AbstractPlugin(AndroidCoppernicAsk
         seReaders[nfc.name] = nfc
         return seReaders
     }
-
-
 }

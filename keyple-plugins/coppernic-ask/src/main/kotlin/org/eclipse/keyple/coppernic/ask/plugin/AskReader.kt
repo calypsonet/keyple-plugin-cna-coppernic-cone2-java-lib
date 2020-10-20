@@ -19,7 +19,7 @@ import kotlin.coroutines.resumeWithException
  */
 internal object AskReader {
 
-    private const val INIT_TIMEOUT: Long = 3000
+    private const val ASK_INIT_TIMEOUT: Long = 10000
 
     lateinit var uniqueInstance: WeakReference<Reader?>
     private val isInitied = AtomicBoolean(false)
@@ -38,7 +38,7 @@ internal object AskReader {
             //val result = ConePeripheral.RFID_ASK_UCM108_GPIO.descriptor.power(context, true).blockingGet()
             //Timber.d("Powered on $result")
 
-            val reader: Reader? = suspendCoroutineWithTimeout(INIT_TIMEOUT) { continuation ->
+            val reader: Reader? = suspendCoroutineWithTimeout(ASK_INIT_TIMEOUT) { continuation ->
                 Reader.getInstance(context, object : InstanceListener<Reader> {
                     override fun onCreated(reader: Reader) {
                         Timber.d("onCreated")
