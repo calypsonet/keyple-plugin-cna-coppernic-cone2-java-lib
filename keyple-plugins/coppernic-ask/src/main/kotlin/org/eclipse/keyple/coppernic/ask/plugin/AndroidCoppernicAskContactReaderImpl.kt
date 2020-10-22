@@ -5,24 +5,22 @@ import fr.coppernic.sdk.ask.Defines.RCSC_Ok
 import fr.coppernic.sdk.utils.core.CpcBytes
 import org.eclipse.keyple.core.seproxy.exception.KeypleReaderIOException
 import org.eclipse.keyple.core.seproxy.plugin.reader.AbstractLocalReader
-import org.eclipse.keyple.core.seproxy.protocol.SeCommonProtocols
-import org.eclipse.keyple.core.seproxy.protocol.SeProtocol
-import org.eclipse.keyple.core.seproxy.protocol.TransmissionMode
+import org.eclipse.keyple.core.seproxy.plugin.reader.util.ContactsCardCommonProtocols
 import org.eclipse.keyple.core.util.ByteArrayUtil
 import timber.log.Timber
-import java.util.concurrent.ConcurrentHashMap
 
 
 /**
  * Keyple SE Reader's Implementation for the Coppernic ASK Contact (SAM access) reader
  */
-internal class AndroidCoppernicAskContactReaderImpl(val contactInterface: ContactInterface): AbstractLocalReader(AndroidCoppernicAskPlugin.PLUGIN_NAME, "${AndroidCoppernicAskContactReader.READER_NAME}_${contactInterface.slotId}"), AndroidCoppernicAskContactReader{
+@Suppress("INVISIBLE_ABSTRACT_MEMBER_FROM_SUPER_WARNING")
+internal class AndroidCoppernicAskContactReaderImpl(val contactInterface: ContactInterface) :
+    AbstractLocalReader(
+        AndroidCoppernicAskPlugin.PLUGIN_NAME,
+        "${AndroidCoppernicAskContactReader.READER_NAME}_${contactInterface.slotId}"
+    ), AndroidCoppernicAskContactReader {
 
-    private val parameters: MutableMap<String, String> = ConcurrentHashMap()
-
-    //private val isPhysicalChannelOpened= AtomicBoolean(false)
-
-    public enum class ContactInterface(val slotId: Byte){
+    enum class ContactInterface(val slotId: Byte) {
         ONE(1.toByte()), TWO(2.toByte())
     }
 
@@ -33,46 +31,37 @@ internal class AndroidCoppernicAskContactReaderImpl(val contactInterface: Contac
     var atr: ByteArray? = null
 
     override fun getATR(): ByteArray? {
-       return atr
+        return atr
     }
 
     override fun openPhysicalChannel() {
         try {
             AskReader.acquireLock()
             //val samSlot = getSetSamSlot()
-            val result = reader.cscSelectSam(contactInterface.slotId, Defines.SAM_PROT_HSP_INNOVATRON)
-            if(result != RCSC_Ok){
+            val result =
+                reader.cscSelectSam(contactInterface.slotId, Defines.SAM_PROT_HSP_INNOVATRON)
+            if (result != RCSC_Ok) {
                 throw KeypleReaderIOException("Could select SAM slot")
             }
             val atr = ByteArray(256)
             val atrLength = IntArray(1)
             val ret = reader.cscResetSam(contactInterface.slotId, atr, atrLength)
-            if(ret == RCSC_Ok){
+            if (ret == RCSC_Ok) {
                 this.atr = ByteArray(atrLength[0])
-                System.arraycopy(atr, 0, this.atr, 0, atrLength[0]);
+                @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
+                System.arraycopy(atr, 0, this.atr, 0, atrLength[0])
                 Timber.i("SAM ATR: ${CpcBytes.byteArrayToString(atr, atrLength[0])}")
-            }else{
+            } else {
                 this.atr = null
             }
 
             //isPhysicalChannelOpened.set(true);
-        }finally {
+        } finally {
             AskReader.releaseLock()
         }
     }
 
-    override fun setParameter(key: String, value: String) {
-        if (key == AndroidCoppernicAskContactReader.FLAG_READER_RESET_STATE) {
-            closeLogicalAndPhysicalChannels()
-        }
-        parameters[key] = value
-    }
-
-    override fun getParameters(): MutableMap<String, String> {
-        return parameters
-    }
-
-    override fun protocolFlagMatches(protocolFlag: SeProtocol?): Boolean {
+    override fun isCurrentProtocol(readerProtocolName: String?): Boolean {
         /*
          Based on C-One2 HF ASK technical specifications
           -> "RFID HF ASK Module: UCM108
@@ -80,7 +69,19 @@ internal class AndroidCoppernicAskContactReaderImpl(val contactInterface: Contac
                 Supports up to 2 SAMs: ISO 7816 A,B,C, T=0, T=1, with PPS up to 1.2 Mb/s
                 ..."
          */
-        return protocolFlag == SeCommonProtocols.PROTOCOL_ISO7816_3
+        return readerProtocolName == ContactsCardCommonProtocols.ISO_7816_3.name
+    }
+
+    override fun deactivateReaderProtocol(readerProtocolName: String?) {
+        //Do nothing
+    }
+
+    override fun isContactless(): Boolean {
+        return false
+    }
+
+    override fun activateReaderProtocol(readerProtocolName: String?) {
+        //Do nothing
     }
 
     override fun isPhysicalChannelOpen(): Boolean {
@@ -89,17 +90,14 @@ internal class AndroidCoppernicAskContactReaderImpl(val contactInterface: Contac
 
     override fun checkSePresence(): Boolean {
         return try {
-                AskReader.acquireLock()
-                //val samSlot = getSetSamSlot()
-                val result = reader.cscSelectSam(contactInterface.slotId, Defines.SAM_PROT_HSP_INNOVATRON)
-                result == RCSC_Ok
-            }finally {
-                AskReader.releaseLock()
-            }
-    }
-
-    override fun getTransmissionMode(): TransmissionMode {
-        return TransmissionMode.CONTACTS
+            AskReader.acquireLock()
+            //val samSlot = getSetSamSlot()
+            val result =
+                reader.cscSelectSam(contactInterface.slotId, Defines.SAM_PROT_HSP_INNOVATRON)
+            result == RCSC_Ok
+        } finally {
+            AskReader.releaseLock()
+        }
     }
 
     override fun closePhysicalChannel() {
@@ -107,7 +105,7 @@ internal class AndroidCoppernicAskContactReaderImpl(val contactInterface: Contac
     }
 
     override fun transmitApdu(apduIn: ByteArray): ByteArray {
-        Timber.d("Data Length to be sent to tag : ${apduIn?.size}")
+        Timber.d("Data Length to be sent to tag : ${apduIn.size}")
         Timber.d("Data In : ${ByteArrayUtil.toHex(apduIn)}")
         try {
             AskReader.acquireLock()
@@ -121,8 +119,8 @@ internal class AndroidCoppernicAskContactReaderImpl(val contactInterface: Contac
                 throw KeypleReaderIOException("cscIsoCommandSam failde with code: $result")
             } else {
                 if (apduOutLen[0] >= 2) {
-                    val apduAnswer = ByteArray(apduOutLen[0]);
-                    System.arraycopy(apduOut, 0, apduAnswer, 0, apduAnswer.size);
+                    val apduAnswer = ByteArray(apduOutLen[0])
+                    System.arraycopy(apduOut, 0, apduAnswer, 0, apduAnswer.size)
                     Timber.d("Data Out : ${ByteArrayUtil.toHex(apduAnswer)}")
                     return apduAnswer
                 } else {

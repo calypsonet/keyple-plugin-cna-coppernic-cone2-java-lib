@@ -11,7 +11,6 @@
  ********************************************************************************/
 package org.eclipse.keyple.coppernic.ask.example.activity
 
-import android.content.DialogInterface
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.appcompat.app.ActionBarDrawerToggle
@@ -28,16 +27,16 @@ import kotlinx.android.synthetic.main.activity_main.toolbar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.eclipse.keyple.coppernic.ask.example.R
-import org.eclipse.keyple.coppernic.ask.example.adapter.EventAdapter
-import org.eclipse.keyple.coppernic.ask.example.model.ChoiceEventModel
-import org.eclipse.keyple.coppernic.ask.example.model.EventModel
 import org.eclipse.keyple.calypso.command.sam.SamRevision
 import org.eclipse.keyple.calypso.transaction.CalypsoSam
 import org.eclipse.keyple.calypso.transaction.PoSecuritySettings
 import org.eclipse.keyple.calypso.transaction.PoTransaction
 import org.eclipse.keyple.calypso.transaction.SamSelectionRequest
 import org.eclipse.keyple.calypso.transaction.SamSelector
+import org.eclipse.keyple.coppernic.ask.example.R
+import org.eclipse.keyple.coppernic.ask.example.adapter.EventAdapter
+import org.eclipse.keyple.coppernic.ask.example.model.ChoiceEventModel
+import org.eclipse.keyple.coppernic.ask.example.model.EventModel
 import org.eclipse.keyple.core.selection.SeResource
 import org.eclipse.keyple.core.selection.SeSelection
 import org.eclipse.keyple.core.seproxy.MultiSeRequestProcessing
@@ -45,8 +44,7 @@ import org.eclipse.keyple.core.seproxy.SeReader
 import org.eclipse.keyple.core.seproxy.event.ObservableReader
 import org.eclipse.keyple.core.seproxy.event.ReaderEvent
 import org.eclipse.keyple.core.seproxy.exception.KeypleReaderException
-import org.eclipse.keyple.core.seproxy.message.ChannelControl
-import org.eclipse.keyple.core.seproxy.protocol.SeCommonProtocols
+import org.eclipse.keyple.core.seproxy.plugin.reader.util.ContactsCardCommonProtocols
 import timber.log.Timber
 
 abstract class AbstractExampleActivity : AppCompatActivity(),
@@ -172,7 +170,8 @@ abstract class AbstractExampleActivity : AppCompatActivity(),
          */
         val samSelection = SeSelection(MultiSeRequestProcessing.FIRST_MATCH)
 
-        val samSelector = SamSelector.builder().seProtocol(SeCommonProtocols.PROTOCOL_ISO7816_3)
+        val protocolIso = ContactsCardCommonProtocols.ISO_7816_3.name
+        val samSelector = SamSelector.builder().seProtocol(protocolIso)
             .samRevision(SamRevision.C1).build()
 
         samSelection.prepareSelection(SamSelectionRequest(samSelector))

@@ -50,7 +50,6 @@ dependencies {
     implementation "org.eclipse.keyple:keyple-java-core:$keyple_version"
     implementation "org.eclipse.keyple:keyple-java-calypso:$keyple_version"
     implementation project(path: ':keyple-plugins:coppernic-ask')
-    //implementation "org.eclipse.keyple:famoco-se-communication:$keyple_version"
 
     implementation "com.jakewharton.timber:timber:$timber_version" //Android
 

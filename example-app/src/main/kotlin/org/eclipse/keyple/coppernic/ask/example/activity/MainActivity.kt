@@ -51,7 +51,9 @@ import org.eclipse.keyple.core.seproxy.event.ObservableReader
 import org.eclipse.keyple.core.seproxy.event.ReaderEvent
 import org.eclipse.keyple.core.seproxy.exception.KeypleReaderException
 import org.eclipse.keyple.core.seproxy.exception.KeypleReaderIOException
-import org.eclipse.keyple.core.seproxy.protocol.SeCommonProtocols
+import org.eclipse.keyple.core.seproxy.plugin.reader.AbstractLocalReader
+import org.eclipse.keyple.core.seproxy.plugin.reader.util.ContactlessCardCommonProtocols
+import org.eclipse.keyple.core.seproxy.plugin.reader.util.ContactsCardCommonProtocols
 import org.eclipse.keyple.core.util.ByteArrayUtil
 import timber.log.Timber
 import java.util.concurrent.atomic.AtomicBoolean
@@ -87,7 +89,7 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
 
     override fun initContentView() {
         setContentView(R.layout.activity_main)
-        initActionBar(toolbar, "Keyple demo", "Famoco Plugin 2")
+        initActionBar(toolbar, "Keyple demo", "Coppernic Plugin 2")
     }
 
     override fun initReaders() {
@@ -110,9 +112,22 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
             val askPlugin = SeProxyService.getInstance().registerPlugin(pluginFactory)
             poReader = askPlugin.getReader(AndroidCoppernicAskContactlessReader.READER_NAME)
             (poReader as ObservableReader).addObserver(this@MainActivity)
-            //(poReader as ObservableReader).addSeProtocolSetting(SeCommonProtocols.PROTOCOL_ISO14443_4, AndroidNfcProtocolSettings.getSetting(SeCommonProtocols.PROTOCOL_ISO14443_4))
-            samReader = askPlugin.readers.toList().first().second //FIXME: Select the slot?
 
+            (poReader as ObservableReader).activateProtocol(
+                ContactlessCardCommonProtocols.ISO_14443_4.name,
+                ContactlessCardCommonProtocols.ISO_14443_4.name
+            )
+
+            //FIXME: Select the slot?
+            samReader = askPlugin.readers.toList().first().second
+            samReader = askPlugin?.readers?.filter {
+                !it.value.isContactless
+            }?.values?.first()!!
+
+            (samReader as AbstractLocalReader).activateProtocol(
+                ContactsCardCommonProtocols.ISO_7816_3.name,
+                ContactsCardCommonProtocols.ISO_7816_3.name
+            )
             areReadersInitialized.set(true)
 
             (poReader as AndroidCoppernicAskContactlessReaderImpl).startSeDetection(ObservableReader.PollingMode.REPEATING)
@@ -214,7 +229,7 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
             /* Calypso selection: configures a PoSelector with all the desired attributes to make the selection and read additional information afterwards */
             val poSelectionRequest = PoSelectionRequest(
                 PoSelector.builder()
-                    .seProtocol(SeCommonProtocols.PROTOCOL_ISO14443_4)
+                    .seProtocol(ContactlessCardCommonProtocols.ISO_14443_4.name)
                     .aidSelector(
                         SeSelector.AidSelector.builder().aidToSelect(CalypsoClassicInfo.AID).build()
                     )
