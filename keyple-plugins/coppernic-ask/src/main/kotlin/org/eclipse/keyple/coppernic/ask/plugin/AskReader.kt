@@ -19,7 +19,7 @@ import kotlin.coroutines.resumeWithException
  */
 internal object AskReader {
 
-    private const val INIT_TIMEOUT: Long = 3000
+    private const val INIT_TIMEOUT: Long = 10000
 
     lateinit var uniqueInstance: WeakReference<Reader?>
     private val isInitied = AtomicBoolean(false)
