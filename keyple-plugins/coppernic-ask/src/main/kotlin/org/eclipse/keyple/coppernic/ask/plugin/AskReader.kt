@@ -3,26 +3,38 @@ package org.eclipse.keyple.coppernic.ask.plugin
 import android.content.Context
 import fr.coppernic.sdk.ask.Reader
 import fr.coppernic.sdk.core.Defines
+import fr.coppernic.sdk.power.PowerManager
+import fr.coppernic.sdk.power.api.PowerListener
+import fr.coppernic.sdk.power.api.peripheral.Peripheral
+import fr.coppernic.sdk.power.impl.cone.ConePeripheral
+import fr.coppernic.sdk.utils.core.CpcResult
 import fr.coppernic.sdk.utils.io.InstanceListener
 import org.eclipse.keyple.coppernic.ask.plugin.utils.suspendCoroutineWithTimeout
+import org.eclipse.keyple.core.seproxy.exception.KeyplePluginInstantiationException
 import org.eclipse.keyple.core.seproxy.exception.KeypleReaderException
 import org.eclipse.keyple.core.seproxy.exception.KeypleReaderIOException
 import timber.log.Timber
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
+import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /**
  * Provides one instance of ASK reader to be shared between contact and contactless reader.
  */
-internal object AskReader {
+internal object AskReader: PowerListener {
 
     private const val ASK_INIT_TIMEOUT: Long = 10000
+    private const val POWER_UP_TIMEOUT: Long = 3000
 
     lateinit var uniqueInstance: WeakReference<Reader?>
     private val isInitied = AtomicBoolean(false)
+
+    lateinit var contextWeakRef: WeakReference<Context?>
+    var powerListenerContinuation: Continuation<Boolean>? = null
+    var peripheral: ConePeripheral? = null
 
     // Avoid timeout issue when a call to checkSePresence has been sent
     // within a transmitApdu command.
@@ -32,51 +44,60 @@ internal object AskReader {
      * Init the reader, is call when instanciating this plugin's factory
      */
     @Throws(Exception::class)
-    public suspend fun init(context: Context): Reader? {
+    suspend fun init(context: Context): Reader? {
         if (!isInitied.get()) {
             Timber.d("Start Init")
-            //val result = ConePeripheral.RFID_ASK_UCM108_GPIO.descriptor.power(context, true).blockingGet()
-            //Timber.d("Powered on $result")
+            contextWeakRef = WeakReference(context)
 
-            val reader: Reader? = suspendCoroutineWithTimeout(ASK_INIT_TIMEOUT) { continuation ->
-                Reader.getInstance(context, object : InstanceListener<Reader> {
-                    override fun onCreated(reader: Reader) {
-                        Timber.d("onCreated")
-                        var result =
-                            reader.cscOpen(Defines.SerialDefines.ASK_READER_PORT, 115200, false)
+            val isPoweredOn: Boolean? =
+                suspendCoroutineWithTimeout(POWER_UP_TIMEOUT) { continuation ->
+                    powerListenerContinuation = continuation
 
-                        if (result != fr.coppernic.sdk.ask.Defines.RCSC_Ok) {
-                            Timber.e("Error while cscOpen: $result")
-                            continuation.resumeWithException(KeypleReaderIOException("Error while cscOpen: $result"))
-                            return
+                    PowerManager.get().registerListener(this@AskReader)
+                    ConePeripheral.RFID_ASK_UCM108_GPIO.on(context)
+                }
+            Timber.d("Powered on : $isPoweredOn")
+
+            if (isPoweredOn != null && isPoweredOn) {
+                val reader: Reader? = suspendCoroutineWithTimeout(ASK_INIT_TIMEOUT) { continuation ->
+                    Reader.getInstance(context, object : InstanceListener<Reader> {
+                        override fun onCreated(reader: Reader) {
+                            Timber.d("onCreated")
+                            var result =
+                                reader.cscOpen(Defines.SerialDefines.ASK_READER_PORT, 115200, false)
+
+                            if (result != fr.coppernic.sdk.ask.Defines.RCSC_Ok) {
+                                Timber.e("Error while cscOpen: $result")
+                                continuation.resumeWithException(KeypleReaderIOException("Error while cscOpen: $result"))
+                                return
+                            }
+
+                            // Initializes reader
+                            val sb = StringBuilder()
+                            result = reader.cscVersionCsc(sb)
+
+                            if (result != fr.coppernic.sdk.ask.Defines.RCSC_Ok) {
+                                Timber.w("Error while cscVersionCsc: $result")
+                            }
+
+                            uniqueInstance = WeakReference(reader)
+                            isInitied.set(true)
+                            Timber.d("End Init")
+                            continuation.resume(reader)
                         }
 
-                        // Initializes reader
-                        val sb = StringBuilder()
-                        result = reader.cscVersionCsc(sb)
-
-                        if (result != fr.coppernic.sdk.ask.Defines.RCSC_Ok) {
-                            Timber.w("Error while cscVersionCsc: $result")
-                            //TODO: Check with Coppernic why this methods fails
-//                            continuation.resumeWithException(KeypleReaderIOException("Error while cscVersionCsc: $result"))
-//                            return
+                        override fun onDisposed(reader: Reader) {
+                            Timber.d("onDisposed")
+                            isInitied.set(false)
+                            continuation.resume(null)
                         }
+                    })
+                }
 
-                        uniqueInstance = WeakReference(reader)
-                        isInitied.set(true)
-                        Timber.d("End Init")
-                        continuation.resume(reader)
-                    }
-
-                    override fun onDisposed(reader: Reader) {
-                        Timber.d("onDisposed")
-                        isInitied.set(false)
-                        continuation.resume(null)
-                    }
-                })
+                return reader
+            } else {
+                throw KeyplePluginInstantiationException("An error occured during Copernic AskReader power up.")
             }
-
-            return reader
         } else {
             return null
         }
@@ -86,12 +107,12 @@ internal object AskReader {
      * Get Reader instance
      */
     @Throws(KeypleReaderException::class)
-    public fun getInstance(): Reader {
+    fun getInstance(): Reader {
         Timber.d("Get Instance")
         if (!isInitied.get()) {
             throw KeypleReaderIOException("Ask Reader not inited")
         }
-        return uniqueInstance?.get()!!
+        return uniqueInstance.get()!!
     }
 
     /**
@@ -100,6 +121,15 @@ internal object AskReader {
      */
     fun clearInstance() {
         Timber.d("Clear Ask Reader instance")
+
+        peripheral?.off(contextWeakRef.get())
+        // Releases PowerManager
+        PowerManager.get().unregisterAll()
+        PowerManager.get().releaseResources()
+
+        contextWeakRef.clear()
+        contextWeakRef = WeakReference<Context?>(null)
+
         getInstance().let {
             uniqueInstance.get()?.destroy()
             uniqueInstance.clear()
@@ -111,15 +141,22 @@ internal object AskReader {
     /**
      * Lock to synchronize reader exchanges
      */
-    public fun acquireLock() {
+    fun acquireLock() {
         isTransmitting.lock()
     }
 
     /**
      * Release Lock
      */
-    public fun releaseLock() {
+    fun releaseLock() {
         isTransmitting.unlock()
     }
 
+    override fun onPowerUp(res: CpcResult.RESULT?, peripheral: Peripheral?) {
+        this.peripheral = peripheral as ConePeripheral
+        powerListenerContinuation?.resume(true)
+    }
+
+    override fun onPowerDown(res: CpcResult.RESULT?, peripheral: Peripheral?) {
+    }
 }
