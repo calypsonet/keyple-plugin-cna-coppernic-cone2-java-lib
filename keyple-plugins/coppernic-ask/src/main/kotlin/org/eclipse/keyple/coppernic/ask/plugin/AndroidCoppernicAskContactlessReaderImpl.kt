@@ -4,14 +4,13 @@ import fr.coppernic.sdk.ask.Defines
 import fr.coppernic.sdk.ask.RfidTag
 import fr.coppernic.sdk.ask.sCARD_SearchExt
 import org.eclipse.keyple.core.seproxy.exception.KeypleReaderIOException
+import org.eclipse.keyple.core.seproxy.exception.KeypleReaderProtocolNotSupportedException
 import org.eclipse.keyple.core.seproxy.plugin.reader.AbstractObservableLocalReader
 import org.eclipse.keyple.core.seproxy.plugin.reader.ObservableReaderStateService
 import org.eclipse.keyple.core.seproxy.plugin.reader.SmartInsertionReader
-import org.eclipse.keyple.core.seproxy.plugin.reader.util.ContactlessCardCommonProtocols
 import org.eclipse.keyple.core.util.ByteArrayUtil
 import timber.log.Timber
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 
@@ -24,6 +23,8 @@ class AndroidCoppernicAskContactlessReaderImpl : AbstractObservableLocalReader(
     AndroidCoppernicAskContactlessReader.READER_NAME
 ), AndroidCoppernicAskContactlessReader,
     SmartInsertionReader {
+
+    private val protocolsMap = mutableMapOf<String, Byte>()
 
     private val parameters: MutableMap<String, String> = ConcurrentHashMap()
     private val reader = AskReader.getInstance()
@@ -38,15 +39,21 @@ class AndroidCoppernicAskContactlessReaderImpl : AbstractObservableLocalReader(
     // This boolean indicates that a card has been discovered
     private val isCardDiscovered = AtomicBoolean(false)
     private val isWaitingForCard = AtomicBoolean(false)
-    private val executorService = Executors.newSingleThreadExecutor()
 
     init {
         Timber.d("init")
         // We set parameters to default values
         parameters[AndroidCoppernicAskContactlessReader.CHECK_FOR_ABSENCE_TIMEOUT_KEY] =
-            AndroidCoppernicAskContactlessReader.CHECK_FOR_ABSENCE_TIMEOUT_DEFAULT;
+            AndroidCoppernicAskContactlessReader.CHECK_FOR_ABSENCE_TIMEOUT_DEFAULT
         parameters[AndroidCoppernicAskContactlessReader.THREAD_WAIT_TIMEOUT_KEY] =
-            AndroidCoppernicAskContactlessReader.THREAD_WAIT_TIMEOUT_DEFAULT;
+            AndroidCoppernicAskContactlessReader.THREAD_WAIT_TIMEOUT_DEFAULT
+
+        protocolsMap[AndroidCoppernicSupportedProtocols.NFC_A_ISO_14443_3A.name] =
+            PROTOCOL_DEACTIVATED
+        protocolsMap[AndroidCoppernicSupportedProtocols.NFC_B_ISO_14443_3B.name] =
+            PROTOCOL_DEACTIVATED
+        protocolsMap[AndroidCoppernicSupportedProtocols.NFC_B_ISO_14443_INNO.name] =
+            PROTOCOL_DEACTIVATED
     }
 
     override fun checkSePresence(): Boolean {
@@ -124,26 +131,37 @@ class AndroidCoppernicAskContactlessReaderImpl : AbstractObservableLocalReader(
             val search = sCARD_SearchExt()
             search.OTH = 0
             search.CONT = 0
-            search.INNO = 1
-            search.ISOA = 1
-            search.ISOB = 1
+            search.INNO = protocolsMap[AndroidCoppernicSupportedProtocols.NFC_B_ISO_14443_INNO.name]
+                ?: PROTOCOL_DEACTIVATED
+            search.ISOA = protocolsMap[AndroidCoppernicSupportedProtocols.NFC_A_ISO_14443_3A.name]
+                ?: PROTOCOL_DEACTIVATED
+            search.ISOB = protocolsMap[AndroidCoppernicSupportedProtocols.NFC_B_ISO_14443_3B.name]
+                ?: PROTOCOL_DEACTIVATED
             search.MIFARE = 0
             search.MONO = 0
             search.MV4k = 0
             search.MV5k = 0
             search.TICK = 0
-            val mask: Int =
-                Defines.SEARCH_MASK_INNO or Defines.SEARCH_MASK_ISOA or Defines.SEARCH_MASK_ISOB
+
+            var mask = 0
+            if (isCurrentProtocol(AndroidCoppernicSupportedProtocols.NFC_B_ISO_14443_INNO.name)) {
+                mask = mask or Defines.SEARCH_MASK_INNO
+            }
+            if (isCurrentProtocol(AndroidCoppernicSupportedProtocols.NFC_A_ISO_14443_3A.name)) {
+                mask = mask or Defines.SEARCH_MASK_ISOA
+            }
+            if (isCurrentProtocol(AndroidCoppernicSupportedProtocols.NFC_B_ISO_14443_3B.name)) {
+                mask = mask or Defines.SEARCH_MASK_ISOB
+            }
 
             val com = ByteArray(1)
             val lpcbAtr = IntArray(1)
             val atr = ByteArray(64)
-
             val ret: Int = reader.cscSearchCardExt(
                 search,
                 mask,
                 0x00.toByte(),
-                0x00.toByte(), //No timeout specified
+                HUNT_PHASE_TIMEOUT, //No timeout specified
                 com,
                 lpcbAtr,
                 atr
@@ -192,6 +210,7 @@ class AndroidCoppernicAskContactlessReaderImpl : AbstractObservableLocalReader(
         }
     }
 
+    @Suppress("unused")
     fun clearInstance() {
         AskReader.clearInstance()
     }
@@ -209,20 +228,7 @@ class AndroidCoppernicAskContactlessReaderImpl : AbstractObservableLocalReader(
     }
 
     override fun isCurrentProtocol(readerProtocolName: String?): Boolean {
-        /*
-         Based on C-One2 HF ASK technical specifications
-          -> "RFID HF ASK Module: UCM108
-                13.56 MHz | ISO 14443 A/B/B’ | Felica | ISO18092 (NFC)
-                ..."
-         */
-        return readerProtocolName == ContactlessCardCommonProtocols.ISO_14443_4.name ||
-                readerProtocolName == ContactlessCardCommonProtocols.NFC_A_ISO_14443_3A.name ||
-                readerProtocolName == ContactlessCardCommonProtocols.NFC_B_ISO_14443_3B.name ||
-                readerProtocolName == ContactlessCardCommonProtocols.NFC_F_JIS_6319_4.name
-    }
-
-    override fun deactivateReaderProtocol(readerProtocolName: String?) {
-        //Do nothing
+        return readerProtocolName == null || protocolsMap.containsKey(readerProtocolName) && protocolsMap[readerProtocolName] == PROTOCOL_ACTIVATED
     }
 
     override fun isContactless(): Boolean {
@@ -230,6 +236,24 @@ class AndroidCoppernicAskContactlessReaderImpl : AbstractObservableLocalReader(
     }
 
     override fun activateReaderProtocol(readerProtocolName: String?) {
-        //Do nothing
+        if (!protocolsMap.containsKey(readerProtocolName)) {
+            throw KeypleReaderProtocolNotSupportedException(readerProtocolName)
+        }
+
+        readerProtocolName?.let {
+            protocolsMap[it] = PROTOCOL_ACTIVATED
+        }
+    }
+
+    override fun deactivateReaderProtocol(readerProtocolName: String?) {
+        if (!readerProtocolName.isNullOrEmpty() && protocolsMap.containsKey(readerProtocolName)) {
+            protocolsMap[readerProtocolName] = PROTOCOL_DEACTIVATED
+        }
+    }
+
+    companion object {
+        const val HUNT_PHASE_TIMEOUT = 0xFF.toByte()
+        const val PROTOCOL_ACTIVATED = 1.toByte()
+        const val PROTOCOL_DEACTIVATED = 0.toByte()
     }
 }
