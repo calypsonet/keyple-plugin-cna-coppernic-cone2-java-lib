@@ -3,9 +3,9 @@ package org.eclipse.keyple.coppernic.ask.plugin
 import fr.coppernic.sdk.ask.Defines
 import fr.coppernic.sdk.ask.Defines.RCSC_Ok
 import fr.coppernic.sdk.utils.core.CpcBytes
-import org.eclipse.keyple.core.seproxy.exception.KeypleReaderIOException
-import org.eclipse.keyple.core.seproxy.plugin.reader.AbstractLocalReader
-import org.eclipse.keyple.core.seproxy.plugin.reader.util.ContactsCardCommonProtocols
+import org.eclipse.keyple.core.plugin.reader.AbstractLocalReader
+import org.eclipse.keyple.core.service.exception.KeypleReaderIOException
+import org.eclipse.keyple.core.service.util.ContactsCardCommonProtocols
 import org.eclipse.keyple.core.util.ByteArrayUtil
 import timber.log.Timber
 
@@ -88,7 +88,7 @@ internal class AndroidCoppernicAskContactReaderImpl(val contactInterface: Contac
         return atr != null
     }
 
-    override fun checkSePresence(): Boolean {
+    override fun checkCardPresence(): Boolean {
         return try {
             AskReader.acquireLock()
             //val samSlot = getSetSamSlot()

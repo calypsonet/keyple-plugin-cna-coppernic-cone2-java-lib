@@ -1,9 +1,9 @@
 package org.eclipse.keyple.coppernic.ask.plugin
 
 import android.content.Context
-import org.eclipse.keyple.core.seproxy.PluginFactory
-import org.eclipse.keyple.core.seproxy.ReaderPlugin
-import org.eclipse.keyple.core.seproxy.exception.KeypleReaderIOException
+import org.eclipse.keyple.core.service.Plugin
+import org.eclipse.keyple.core.service.PluginFactory
+import org.eclipse.keyple.core.service.exception.KeypleReaderIOException
 
 object AndroidCoppernicAskPluginFactory : PluginFactory {
 
@@ -20,7 +20,7 @@ object AndroidCoppernicAskPluginFactory : PluginFactory {
         return AndroidCoppernicAskPlugin.PLUGIN_NAME
     }
 
-    override fun getPlugin(): ReaderPlugin {
+    override fun getPlugin(): Plugin {
         return AndroidCoppernicAskPluginImpl()
     }
 }

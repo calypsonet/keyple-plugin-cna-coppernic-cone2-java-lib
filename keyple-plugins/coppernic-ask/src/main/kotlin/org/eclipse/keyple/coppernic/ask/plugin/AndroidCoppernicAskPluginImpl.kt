@@ -1,7 +1,7 @@
 package org.eclipse.keyple.coppernic.ask.plugin
 
-import org.eclipse.keyple.core.seproxy.SeReader
-import org.eclipse.keyple.core.seproxy.plugin.AbstractPlugin
+import org.eclipse.keyple.core.plugin.AbstractPlugin
+import org.eclipse.keyple.core.service.Reader
 import timber.log.Timber
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentMap
@@ -11,9 +11,9 @@ import java.util.concurrent.ConcurrentMap
  */
 internal class AndroidCoppernicAskPluginImpl: AbstractPlugin(AndroidCoppernicAskPlugin.PLUGIN_NAME), AndroidCoppernicAskPlugin{
 
-    override fun initNativeReaders(): ConcurrentMap<String, SeReader> {
+    override fun initNativeReaders(): ConcurrentMap<String, Reader> {
         Timber.w("Init native readers")
-        val seReaders = ConcurrentHashMap<String, SeReader>()
+        val seReaders = ConcurrentHashMap<String, Reader>()
         val sam1 = AndroidCoppernicAskContactReaderImpl(AndroidCoppernicAskContactReaderImpl.ContactInterface.ONE)
         seReaders[sam1.name] = sam1
         val sam2 = AndroidCoppernicAskContactReaderImpl(AndroidCoppernicAskContactReaderImpl.ContactInterface.TWO)

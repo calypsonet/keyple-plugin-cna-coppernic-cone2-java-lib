@@ -5,8 +5,8 @@ import fr.coppernic.sdk.ask.Reader
 import fr.coppernic.sdk.core.Defines
 import fr.coppernic.sdk.utils.io.InstanceListener
 import org.eclipse.keyple.coppernic.ask.plugin.utils.suspendCoroutineWithTimeout
-import org.eclipse.keyple.core.seproxy.exception.KeypleReaderException
-import org.eclipse.keyple.core.seproxy.exception.KeypleReaderIOException
+import org.eclipse.keyple.core.service.exception.KeypleReaderException
+import org.eclipse.keyple.core.service.exception.KeypleReaderIOException
 import timber.log.Timber
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicBoolean
