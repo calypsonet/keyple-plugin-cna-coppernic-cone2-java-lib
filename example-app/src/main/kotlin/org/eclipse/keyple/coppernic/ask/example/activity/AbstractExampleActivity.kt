@@ -37,14 +37,14 @@ import org.eclipse.keyple.coppernic.ask.example.R
 import org.eclipse.keyple.coppernic.ask.example.adapter.EventAdapter
 import org.eclipse.keyple.coppernic.ask.example.model.ChoiceEventModel
 import org.eclipse.keyple.coppernic.ask.example.model.EventModel
-import org.eclipse.keyple.core.selection.SeResource
-import org.eclipse.keyple.core.selection.SeSelection
-import org.eclipse.keyple.core.seproxy.MultiSeRequestProcessing
-import org.eclipse.keyple.core.seproxy.SeReader
-import org.eclipse.keyple.core.seproxy.event.ObservableReader
-import org.eclipse.keyple.core.seproxy.event.ReaderEvent
-import org.eclipse.keyple.core.seproxy.exception.KeypleReaderException
-import org.eclipse.keyple.core.seproxy.plugin.reader.util.ContactsCardCommonProtocols
+import org.eclipse.keyple.core.card.selection.CardResource
+import org.eclipse.keyple.core.card.selection.CardSelection
+import org.eclipse.keyple.core.card.selection.MultiSelectionProcessing
+import org.eclipse.keyple.core.service.Reader
+import org.eclipse.keyple.core.service.event.ObservableReader
+import org.eclipse.keyple.core.service.event.ReaderEvent
+import org.eclipse.keyple.core.service.exception.KeypleReaderException
+import org.eclipse.keyple.core.service.util.ContactsCardCommonProtocols
 import timber.log.Timber
 
 abstract class AbstractExampleActivity : AppCompatActivity(),
@@ -163,24 +163,24 @@ abstract class AbstractExampleActivity : AppCompatActivity(),
     abstract fun initReaders()
 
     @Throws(KeypleReaderException::class, IllegalStateException::class)
-    protected fun checkSamAndOpenChannel(samReader: SeReader): SeResource<CalypsoSam> {
+    protected fun checkSamAndOpenChannel(samReader: Reader): CardResource<CalypsoSam> {
         /*
          * check the availability of the SAM doing a ATR based selection, open its physical and
          * logical channels and keep it open
          */
-        val samSelection = SeSelection(MultiSeRequestProcessing.FIRST_MATCH)
+        val samSelection = CardSelection(MultiSelectionProcessing.FIRST_MATCH)
 
         val protocolIso = ContactsCardCommonProtocols.ISO_7816_3.name
-        val samSelector = SamSelector.builder().seProtocol(protocolIso)
+        val samSelector = SamSelector.builder().cardProtocol(protocolIso)
             .samRevision(SamRevision.C1).build()
 
         samSelection.prepareSelection(SamSelectionRequest(samSelector))
 
         return try {
-            if (samReader.isSePresent) {
+            if (samReader.isCardPresent) {
                 val calypsoSam =
-                    samSelection.processExplicitSelection(samReader).activeMatchingSe as CalypsoSam
-                SeResource<CalypsoSam>(samReader, calypsoSam)
+                    samSelection.processExplicitSelection(samReader).activeSmartCard as CalypsoSam
+                CardResource<CalypsoSam>(samReader, calypsoSam)
             } else {
                 addResultEvent("Error: Sam is not present in the reader")
                 throw IllegalStateException("Sam is not present in the reader")
@@ -191,7 +191,7 @@ abstract class AbstractExampleActivity : AppCompatActivity(),
         }
     }
 
-    protected fun getSecuritySettings(samResource: SeResource<CalypsoSam>?): PoSecuritySettings? {
+    protected fun getSecuritySettings(samResource: CardResource<CalypsoSam>?): PoSecuritySettings? {
 
         // The default KIF values for personalization, loading and debiting
         val DEFAULT_KIF_PERSO = 0x21.toByte()

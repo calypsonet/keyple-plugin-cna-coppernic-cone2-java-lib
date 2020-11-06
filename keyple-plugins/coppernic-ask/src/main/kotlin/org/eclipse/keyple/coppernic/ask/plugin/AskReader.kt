@@ -10,9 +10,8 @@ import fr.coppernic.sdk.power.impl.cone.ConePeripheral
 import fr.coppernic.sdk.utils.core.CpcResult
 import fr.coppernic.sdk.utils.io.InstanceListener
 import org.eclipse.keyple.coppernic.ask.plugin.utils.suspendCoroutineWithTimeout
-import org.eclipse.keyple.core.seproxy.exception.KeyplePluginInstantiationException
-import org.eclipse.keyple.core.seproxy.exception.KeypleReaderException
-import org.eclipse.keyple.core.seproxy.exception.KeypleReaderIOException
+import org.eclipse.keyple.core.service.exception.KeypleReaderException
+import org.eclipse.keyple.core.service.exception.KeypleReaderIOException
 import timber.log.Timber
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicBoolean

@@ -3,11 +3,11 @@ package org.eclipse.keyple.coppernic.ask.plugin
 import fr.coppernic.sdk.ask.Defines
 import fr.coppernic.sdk.ask.RfidTag
 import fr.coppernic.sdk.ask.sCARD_SearchExt
-import org.eclipse.keyple.core.seproxy.exception.KeypleReaderIOException
-import org.eclipse.keyple.core.seproxy.exception.KeypleReaderProtocolNotSupportedException
-import org.eclipse.keyple.core.seproxy.plugin.reader.AbstractObservableLocalReader
-import org.eclipse.keyple.core.seproxy.plugin.reader.ObservableReaderStateService
-import org.eclipse.keyple.core.seproxy.plugin.reader.SmartInsertionReader
+import org.eclipse.keyple.core.plugin.reader.AbstractObservableLocalReader
+import org.eclipse.keyple.core.plugin.reader.ObservableReaderStateService
+import org.eclipse.keyple.core.plugin.reader.SmartInsertionReader
+import org.eclipse.keyple.core.service.exception.KeypleReaderIOException
+import org.eclipse.keyple.core.service.util.ContactlessCardCommonProtocols
 import org.eclipse.keyple.core.util.ByteArrayUtil
 import timber.log.Timber
 import java.util.concurrent.ConcurrentHashMap
@@ -56,7 +56,7 @@ class AndroidCoppernicAskContactlessReaderImpl : AbstractObservableLocalReader(
             PROTOCOL_DEACTIVATED
     }
 
-    override fun checkSePresence(): Boolean {
+    override fun checkCardPresence(): Boolean {
         return isCardDiscovered.get()
     }
 
@@ -221,9 +221,9 @@ class AndroidCoppernicAskContactlessReaderImpl : AbstractObservableLocalReader(
      */
     override fun initStateService(): ObservableReaderStateService {
         return ObservableReaderStateService.builder(this)
-            .waitForSeInsertionWithSmartDetection()
-            .waitForSeProcessingWithNativeDetection()
-            .waitForSeRemovalWithPollingDetection()
+            .waitForCardInsertionWithSmartDetection()
+            .waitForCardProcessingWithNativeDetection()
+            .waitForCardRemovalWithPollingDetection()
             .build()
     }
 
