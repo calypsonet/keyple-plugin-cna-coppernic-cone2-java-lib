@@ -9,23 +9,22 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  ********************************************************************************/
-package org.eclipse.keyple.coppernic.ask.plugin.utils
-
-import kotlin.coroutines.Continuation
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withTimeoutOrNull
+package org.eclipse.keyple.coppernic.ask.plugin
 
 /**
  *
- *  created on 18/09/2020
+ *  created on 27/10/2020
  *
  *  @author youssefamrani
  */
 
-suspend inline fun <T> suspendCoroutineWithTimeout(timeout: Long, crossinline block: (Continuation<T>) -> Unit): T? {
-    var finalValue: T? = null
-    withTimeoutOrNull(timeout) {
-        finalValue = suspendCancellableCoroutine(block = block)
-    }
-    return finalValue
+enum class ParagonSupportedContactlessProtocols {
+    ISO_14443,
+    ISO_14443_A,
+    ISO_14443_B,
+    INNOVATRON_B_PRIME,
+    TICKET_CTS_CTM,
+    MIFARE,
+    FELICA,
+    MV5000
 }

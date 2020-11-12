@@ -11,21 +11,16 @@
  ********************************************************************************/
 package org.eclipse.keyple.coppernic.ask.example.activity
 
-import android.os.Bundle
 import android.view.MenuItem
 import androidx.core.view.GravityCompat
-import fr.coppernic.sdk.power.PowerManager
-import fr.coppernic.sdk.power.api.PowerListener
-import fr.coppernic.sdk.power.api.peripheral.Peripheral
-import fr.coppernic.sdk.power.impl.cone.ConePeripheral
-import fr.coppernic.sdk.utils.core.CpcResult
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.android.synthetic.main.activity_main.drawerLayout
 import kotlinx.android.synthetic.main.activity_main.toolbar
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.withContext
 import org.eclipse.keyple.calypso.command.po.exception.CalypsoPoCommandException
 import org.eclipse.keyple.calypso.command.sam.exception.CalypsoSamCommandException
 import org.eclipse.keyple.calypso.transaction.CalypsoPo
@@ -35,14 +30,17 @@ import org.eclipse.keyple.calypso.transaction.PoTransaction
 import org.eclipse.keyple.calypso.transaction.exception.CalypsoPoTransactionException
 import org.eclipse.keyple.coppernic.ask.example.R
 import org.eclipse.keyple.coppernic.ask.example.util.CalypsoClassicInfo
-import org.eclipse.keyple.coppernic.ask.plugin.AndroidCoppernicAskContactlessReader
-import org.eclipse.keyple.coppernic.ask.plugin.AndroidCoppernicAskContactlessReaderImpl
-import org.eclipse.keyple.coppernic.ask.plugin.AndroidCoppernicAskPluginFactory
-import org.eclipse.keyple.core.card.selection.SelectionsResult
+import org.eclipse.keyple.coppernic.ask.plugin.Cone2ContactReader
+import org.eclipse.keyple.coppernic.ask.plugin.Cone2ContactlessReader
+import org.eclipse.keyple.coppernic.ask.plugin.Cone2ContactlessReaderImpl
+import org.eclipse.keyple.coppernic.ask.plugin.Cone2PluginFactory
+import org.eclipse.keyple.coppernic.ask.plugin.ParagonSupportedContactProtocols
+import org.eclipse.keyple.coppernic.ask.plugin.ParagonSupportedContactlessProtocols
 import org.eclipse.keyple.core.card.selection.CardResource
 import org.eclipse.keyple.core.card.selection.CardSelection
 import org.eclipse.keyple.core.card.selection.CardSelector
 import org.eclipse.keyple.core.card.selection.MultiSelectionProcessing
+import org.eclipse.keyple.core.card.selection.SelectionsResult
 import org.eclipse.keyple.core.plugin.reader.AbstractLocalReader
 import org.eclipse.keyple.core.service.PluginFactory
 import org.eclipse.keyple.core.service.Reader
@@ -52,14 +50,10 @@ import org.eclipse.keyple.core.service.event.ObservableReader
 import org.eclipse.keyple.core.service.event.ReaderEvent
 import org.eclipse.keyple.core.service.exception.KeypleReaderException
 import org.eclipse.keyple.core.service.exception.KeypleReaderIOException
-import org.eclipse.keyple.core.service.util.ContactlessCardCommonProtocols
-import org.eclipse.keyple.core.service.util.ContactsCardCommonProtocols
 import org.eclipse.keyple.core.util.ByteArrayUtil
 import timber.log.Timber
-import java.util.concurrent.atomic.AtomicBoolean
 
-
-class MainActivity : AbstractExampleActivity(), PowerListener {
+class MainActivity : AbstractExampleActivity() {
 
     private var poReader: Reader? = null
     private lateinit var samReader: Reader
@@ -72,35 +66,31 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
         INCREASE
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        PowerManager.get().registerListener(this)
-
-        ConePeripheral.RFID_ASK_UCM108_GPIO.on(this)
-    }
-
-    override fun onPowerUp(res: CpcResult.RESULT?, peripheral: Peripheral?) {
-        initReaders()
-    }
-
-    override fun onPowerDown(res: CpcResult.RESULT?, peripheral: Peripheral?) {
-        //TODO("Not yet implemented")
-    }
-
     override fun initContentView() {
         setContentView(R.layout.activity_main)
         initActionBar(toolbar, "Keyple demo", "Coppernic Plugin 2")
     }
 
+    override fun onResume() {
+        super.onResume()
+        addActionEvent("Enabling NFC Reader mode")
+        addResultEvent("Please choose a use case")
+        if (!areReadersInitialized.get()) {
+            initReaders()
+        } else {
+            (poReader as Cone2ContactlessReaderImpl).startCardDetection(ObservableReader.PollingMode.REPEATING)
+        }
+    }
+
     override fun initReaders() {
-        Timber.d("initReaders");
-        //Connexion to ASK lib take time, we've added a callback to this factory.
+        Timber.d("initReaders")
+        // Connexion to ASK lib take time, we've added a callback to this factory.
 
         GlobalScope.launch {
             val pluginFactory: PluginFactory?
             try {
                 pluginFactory = withContext(Dispatchers.IO) {
-                    AndroidCoppernicAskPluginFactory.init(applicationContext)
+                    Cone2PluginFactory.init(applicationContext)
                 }
             } catch (e: KeypleReaderIOException) {
                 withContext(Dispatchers.Main) {
@@ -110,27 +100,23 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
             }
 
             val askPlugin = SmartCardService.getInstance().registerPlugin(pluginFactory)
-            poReader = askPlugin.getReader(AndroidCoppernicAskContactlessReader.READER_NAME)
+            poReader = askPlugin.getReader(Cone2ContactlessReader.READER_NAME)
             (poReader as ObservableReader).addObserver(this@MainActivity)
 
             (poReader as ObservableReader).activateProtocol(
-                ContactlessCardCommonProtocols.ISO_14443_4.name,
-                ContactlessCardCommonProtocols.ISO_14443_4.name
+                ParagonSupportedContactlessProtocols.ISO_14443.name,
+                ParagonSupportedContactlessProtocols.ISO_14443.name
             )
 
-            //FIXME: Select the slot?
-            samReader = askPlugin.readers.toList().first().second
-            samReader = askPlugin?.readers?.filter {
-                !it.value.isContactless
-            }?.values?.first()!!
+            samReader = askPlugin.readers[SAM_READER_1_NAME]!!
 
             (samReader as AbstractLocalReader).activateProtocol(
-                ContactsCardCommonProtocols.ISO_7816_3.name,
-                ContactsCardCommonProtocols.ISO_7816_3.name
+                ParagonSupportedContactProtocols.INNOVATRON_HIGH_SPEED_PROTOCOL.name,
+                ParagonSupportedContactProtocols.INNOVATRON_HIGH_SPEED_PROTOCOL.name
             )
             areReadersInitialized.set(true)
 
-            (poReader as AndroidCoppernicAskContactlessReaderImpl).startCardDetection(ObservableReader.PollingMode.REPEATING)
+            (poReader as Cone2ContactlessReaderImpl).startCardDetection(ObservableReader.PollingMode.REPEATING)
         }
 
 //        // Configuration of AndroidNfc Reader
@@ -150,20 +136,10 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
 //        samReader = samPlugin.getReader(AndroidFamocoReader.READER_NAME)
     }
 
-    override fun onResume() {
-        super.onResume()
-        addActionEvent("Enabling NFC Reader mode")
-        //poReader.enableNFCReaderMode(this)
-        addResultEvent("Please choose a use case")
-        if (areReadersInitialized.get()) {
-            (poReader as AndroidCoppernicAskContactlessReaderImpl).startCardDetection(ObservableReader.PollingMode.REPEATING)
-        }
-    }
-
     override fun onPause() {
         addActionEvent("Stopping PO Read Write Mode")
         if (areReadersInitialized.get()) {
-            (poReader as AndroidCoppernicAskContactlessReaderImpl).stopCardDetection()
+            (poReader as Cone2ContactlessReaderImpl).stopCardDetection()
         }
         super.onPause()
     }
@@ -172,9 +148,11 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
         poReader?.let {
             (poReader as ObservableReader).removeObserver(this)
         }
-        // Releases PowerManager
-        PowerManager.get().unregisterAll()
-        PowerManager.get().releaseResources()
+
+        SmartCardService.getInstance().plugins.forEach {
+            SmartCardService.getInstance().unregisterPlugin(it.key)
+        }
+
         super.onDestroy()
     }
 
@@ -229,10 +207,8 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
             /* Calypso selection: configures a PoSelector with all the desired attributes to make the selection and read additional information afterwards */
             val poSelectionRequest = PoSelectionRequest(
                 PoSelector.builder()
-                    .cardProtocol(ContactlessCardCommonProtocols.ISO_14443_4.name)
-                    .aidSelector(
-                        CardSelector.AidSelector.builder().aidToSelect(CalypsoClassicInfo.AID).build()
-                    )
+                    .cardProtocol(ParagonSupportedContactlessProtocols.ISO_14443.name)
+                    .aidSelector(CardSelector.AidSelector.builder().aidToSelect(CalypsoClassicInfo.AID).build())
                     .invalidatedPo(PoSelector.InvalidatedPo.REJECT).build()
             )
 
@@ -276,10 +252,6 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
                             ReaderEvent.EventType.CARD_REMOVED -> {
                                 addResultEvent("PO removed")
                             }
-
-                            ReaderEvent.EventType.TIMEOUT_ERROR -> {
-                                addResultEvent("PO Timeout")
-                            }
                         }
                     }
                     // eventRecyclerView.smoothScrollToPosition(events.size - 1)
@@ -287,7 +259,7 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
             }
 
             // notify reader that se detection has been launched
-            //poReader.startSeDetection(ObservableReader.PollingMode.REPEATING)
+            // poReader.startSeDetection(ObservableReader.PollingMode.REPEATING)
             addActionEvent("Waiting for PO presentation")
         } catch (e: KeypleReaderException) {
             Timber.e(e)
@@ -343,7 +315,7 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
                 addHeaderEvent("2nd PO exchange: read the event log file")
 
                 val poTransaction = if (withSam) {
-                    //samReader.setParameter(AndroidFamocoReader.FLAG_READER_RESET_STATE, "")
+                    // samReader.setParameter(AndroidFamocoReader.FLAG_READER_RESET_STATE, "")
                     addActionEvent("Init Sam and open channel")
                     val samResource = checkSamAndOpenChannel(samReader)
                     PoTransaction(CardResource(poReader, calypsoPo), getSecuritySettings(samResource))
@@ -387,7 +359,7 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
                     addResultEvent("EventLog file: $eventLog")
                 } else {
                     poTransaction.processPoCommands()
-                    //poTransaction.processClosing() //?
+                    // poTransaction.processClosing() //?
                     addResultEvent("Counter value: ${readCounter(selectionsResult)}")
                     addResultEvent(
                         "EventLog file: ${ByteArrayUtil.toHex(
@@ -443,10 +415,10 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
         transactionType: TransactionType
     ) {
         try {
-            //addResultEvent("Tag Id : ${poReader.printTagId()}")
+            // addResultEvent("Tag Id : ${poReader.printTagId()}")
 
             // FIXME: Trick to reopen all channel
-            //samReader.setParameter(AndroidFamocoReader.FLAG_READER_RESET_STATE, "")
+            // samReader.setParameter(AndroidFamocoReader.FLAG_READER_RESET_STATE, "")
             addActionEvent("Init Sam and open channel")
             val samResource = checkSamAndOpenChannel(samReader)
 
@@ -534,5 +506,11 @@ class MainActivity : AbstractExampleActivity(), PowerListener {
             Timber.e(e)
             addResultEvent("Exception: ${e.message}")
         }
+    }
+
+    companion object {
+        private const val SAM_READER_SLOT_1 = "1"
+        const val SAM_READER_1_NAME =
+            "${Cone2ContactReader.READER_NAME}_$SAM_READER_SLOT_1"
     }
 }

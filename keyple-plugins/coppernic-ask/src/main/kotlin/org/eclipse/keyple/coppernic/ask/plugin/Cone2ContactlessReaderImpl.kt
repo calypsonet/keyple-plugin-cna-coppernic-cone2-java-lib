@@ -1,33 +1,47 @@
+/********************************************************************************
+ * Copyright (c) 2020 Calypso Networks Association https://www.calypsonet-asso.org/
+ *
+ * See the NOTICE file(s) distributed with this work for additional information regarding copyright
+ * ownership.
+ *
+ * This program and the accompanying materials are made available under the terms of the Eclipse
+ * Public License 2.0 which is available at http://www.eclipse.org/legal/epl-2.0
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ ********************************************************************************/
 package org.eclipse.keyple.coppernic.ask.plugin
 
 import fr.coppernic.sdk.ask.Defines
 import fr.coppernic.sdk.ask.RfidTag
 import fr.coppernic.sdk.ask.sCARD_SearchExt
-import org.eclipse.keyple.core.plugin.reader.AbstractObservableLocalReader
-import org.eclipse.keyple.core.plugin.reader.ObservableReaderStateService
-import org.eclipse.keyple.core.plugin.reader.SmartInsertionReader
-import org.eclipse.keyple.core.service.exception.KeypleReaderIOException
-import org.eclipse.keyple.core.service.util.ContactlessCardCommonProtocols
-import org.eclipse.keyple.core.util.ByteArrayUtil
-import timber.log.Timber
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
-
+import kotlin.experimental.or
+import org.eclipse.keyple.core.plugin.reader.AbstractObservableLocalReader
+import org.eclipse.keyple.core.plugin.reader.DontWaitForCardRemovalDuringProcessing
+import org.eclipse.keyple.core.plugin.reader.WaitForCardInsertionBlocking
+import org.eclipse.keyple.core.plugin.reader.WaitForCardRemovalNonBlocking
+import org.eclipse.keyple.core.service.exception.KeypleReaderIOException
+import org.eclipse.keyple.core.service.exception.KeypleReaderProtocolNotSupportedException
+import org.eclipse.keyple.core.util.ByteArrayUtil
+import timber.log.Timber
 
 /**
  * Implementation of {@link org.eclipse.keyple.core.seproxy.SeReader} to communicate with NFC Tag
  * using ASK Coppernic library
  */
-class AndroidCoppernicAskContactlessReaderImpl : AbstractObservableLocalReader(
-    AndroidCoppernicAskPlugin.PLUGIN_NAME,
-    AndroidCoppernicAskContactlessReader.READER_NAME
-), AndroidCoppernicAskContactlessReader,
-    SmartInsertionReader {
+class Cone2ContactlessReaderImpl : AbstractObservableLocalReader(
+    Cone2Plugin.PLUGIN_NAME,
+    Cone2ContactlessReader.READER_NAME
+), Cone2ContactlessReader,
+    WaitForCardInsertionBlocking,
+    DontWaitForCardRemovalDuringProcessing,
+    WaitForCardRemovalNonBlocking {
 
     private val protocolsMap = mutableMapOf<String, Byte>()
 
     private val parameters: MutableMap<String, String> = ConcurrentHashMap()
-    private val reader = AskReader.getInstance()
+    private val reader = ParagonReader.getInstance()
 
     // RFID tag information returned when card is detected
     private var rfidTag: RfidTag? = null
@@ -43,16 +57,26 @@ class AndroidCoppernicAskContactlessReaderImpl : AbstractObservableLocalReader(
     init {
         Timber.d("init")
         // We set parameters to default values
-        parameters[AndroidCoppernicAskContactlessReader.CHECK_FOR_ABSENCE_TIMEOUT_KEY] =
-            AndroidCoppernicAskContactlessReader.CHECK_FOR_ABSENCE_TIMEOUT_DEFAULT
-        parameters[AndroidCoppernicAskContactlessReader.THREAD_WAIT_TIMEOUT_KEY] =
-            AndroidCoppernicAskContactlessReader.THREAD_WAIT_TIMEOUT_DEFAULT
+        parameters[Cone2ContactlessReader.CHECK_FOR_ABSENCE_TIMEOUT_KEY] =
+            Cone2ContactlessReader.CHECK_FOR_ABSENCE_TIMEOUT_DEFAULT
+        parameters[Cone2ContactlessReader.THREAD_WAIT_TIMEOUT_KEY] =
+            Cone2ContactlessReader.THREAD_WAIT_TIMEOUT_DEFAULT
 
-        protocolsMap[AndroidCoppernicSupportedProtocols.NFC_A_ISO_14443_3A.name] =
+        protocolsMap[ParagonSupportedContactlessProtocols.ISO_14443.name] =
             PROTOCOL_DEACTIVATED
-        protocolsMap[AndroidCoppernicSupportedProtocols.NFC_B_ISO_14443_3B.name] =
+        protocolsMap[ParagonSupportedContactlessProtocols.ISO_14443_A.name] =
             PROTOCOL_DEACTIVATED
-        protocolsMap[AndroidCoppernicSupportedProtocols.NFC_B_ISO_14443_INNO.name] =
+        protocolsMap[ParagonSupportedContactlessProtocols.ISO_14443_B.name] =
+            PROTOCOL_DEACTIVATED
+        protocolsMap[ParagonSupportedContactlessProtocols.INNOVATRON_B_PRIME.name] =
+            PROTOCOL_DEACTIVATED
+        protocolsMap[ParagonSupportedContactlessProtocols.TICKET_CTS_CTM.name] =
+            PROTOCOL_DEACTIVATED
+        protocolsMap[ParagonSupportedContactlessProtocols.MIFARE.name] =
+            PROTOCOL_DEACTIVATED
+        protocolsMap[ParagonSupportedContactlessProtocols.FELICA.name] =
+            PROTOCOL_DEACTIVATED
+        protocolsMap[ParagonSupportedContactlessProtocols.MV5000.name] =
             PROTOCOL_DEACTIVATED
     }
 
@@ -113,7 +137,7 @@ class AndroidCoppernicAskContactlessReaderImpl : AbstractObservableLocalReader(
     private fun enterHuntPhase(): RfidTag {
         Timber.d("enterHuntPhase")
         try {
-            AskReader.acquireLock()
+            ParagonReader.acquireLock()
             // 1 - Sets the enter hunt phase parameters to no select application
             reader.cscEnterHuntPhaseParameters(
                 0x01.toByte(),
@@ -128,30 +152,40 @@ class AndroidCoppernicAskContactlessReaderImpl : AbstractObservableLocalReader(
                 0x00.toShort(),
                 0x00.toByte()
             )
+
             val search = sCARD_SearchExt()
-            search.OTH = 0
             search.CONT = 0
-            search.INNO = protocolsMap[AndroidCoppernicSupportedProtocols.NFC_B_ISO_14443_INNO.name]
-                ?: PROTOCOL_DEACTIVATED
-            search.ISOA = protocolsMap[AndroidCoppernicSupportedProtocols.NFC_A_ISO_14443_3A.name]
-                ?: PROTOCOL_DEACTIVATED
-            search.ISOB = protocolsMap[AndroidCoppernicSupportedProtocols.NFC_B_ISO_14443_3B.name]
-                ?: PROTOCOL_DEACTIVATED
-            search.MIFARE = 0
-            search.MONO = 0
+            search.OTH = 0
+            search.ISOB = protocolsMap[ParagonSupportedContactlessProtocols.ISO_14443.name]!! or
+                    protocolsMap[ParagonSupportedContactlessProtocols.ISO_14443_B.name]!!
+            search.ISOA = protocolsMap[ParagonSupportedContactlessProtocols.ISO_14443.name]!! or
+                    protocolsMap[ParagonSupportedContactlessProtocols.ISO_14443_A.name]!!
+            search.TICK = protocolsMap[ParagonSupportedContactlessProtocols.TICKET_CTS_CTM.name]!!
+            search.INNO = protocolsMap[ParagonSupportedContactlessProtocols.INNOVATRON_B_PRIME.name]!!
+            search.MIFARE = protocolsMap[ParagonSupportedContactlessProtocols.MIFARE.name]!!
             search.MV4k = 0
-            search.MV5k = 0
-            search.TICK = 0
+            search.MV5k = protocolsMap[ParagonSupportedContactlessProtocols.MV5000.name]!!
+            search.MONO = 0
 
             var mask = 0
-            if (isCurrentProtocol(AndroidCoppernicSupportedProtocols.NFC_B_ISO_14443_INNO.name)) {
+            if (isCurrentProtocol(ParagonSupportedContactlessProtocols.ISO_14443.name)) {
+                mask = mask or Defines.SEARCH_MASK_ISOA or Defines.SEARCH_MASK_ISOB
+            } else if (isCurrentProtocol(ParagonSupportedContactlessProtocols.ISO_14443_A.name)) {
+                mask = mask or Defines.SEARCH_MASK_ISOA
+            } else if (isCurrentProtocol(ParagonSupportedContactlessProtocols.ISO_14443_B.name)) {
+                mask = mask or Defines.SEARCH_MASK_ISOB
+            }
+            if (isCurrentProtocol(ParagonSupportedContactlessProtocols.INNOVATRON_B_PRIME.name)) {
                 mask = mask or Defines.SEARCH_MASK_INNO
             }
-            if (isCurrentProtocol(AndroidCoppernicSupportedProtocols.NFC_A_ISO_14443_3A.name)) {
-                mask = mask or Defines.SEARCH_MASK_ISOA
+            if (isCurrentProtocol(ParagonSupportedContactlessProtocols.TICKET_CTS_CTM.name)) {
+                mask = mask or Defines.SEARCH_MASK_TICK
             }
-            if (isCurrentProtocol(AndroidCoppernicSupportedProtocols.NFC_B_ISO_14443_3B.name)) {
-                mask = mask or Defines.SEARCH_MASK_ISOB
+            if (isCurrentProtocol(ParagonSupportedContactlessProtocols.MIFARE.name)) {
+                mask = mask or Defines.SEARCH_MASK_MIFARE
+            }
+            if (isCurrentProtocol(ParagonSupportedContactlessProtocols.MV5000.name)) {
+                mask = mask or Defines.SEARCH_MASK_MV5K
             }
 
             val com = ByteArray(1)
@@ -161,7 +195,7 @@ class AndroidCoppernicAskContactlessReaderImpl : AbstractObservableLocalReader(
                 search,
                 mask,
                 0x00.toByte(),
-                HUNT_PHASE_TIMEOUT, //No timeout specified
+                HUNT_PHASE_TIMEOUT, // No timeout specified
                 com,
                 lpcbAtr,
                 atr
@@ -178,17 +212,16 @@ class AndroidCoppernicAskContactlessReaderImpl : AbstractObservableLocalReader(
                 RfidTag(com[0], correctSizedAtr)
             }
         } finally {
-            AskReader.releaseLock()
+            ParagonReader.releaseLock()
         }
     }
 
     override fun transmitApdu(apduIn: ByteArray): ByteArray {
         Timber.d("transmitApdu")
         try {
-            AskReader.acquireLock()
+            ParagonReader.acquireLock()
             val dataReceived = ByteArray(256)
             val dataReceivedLength = IntArray(1)
-
 
             Timber.d("KEYPLE-APDU-SAM - Data Length to be sent to tag : ${apduIn.size}")
             Timber.d("KEYPLE-APDU-SAM - Data In : ${ByteArrayUtil.toHex(apduIn)}")
@@ -201,30 +234,17 @@ class AndroidCoppernicAskContactlessReaderImpl : AbstractObservableLocalReader(
                 throw KeypleReaderIOException("Incorrect APDU Answer")
             } else {
                 val apduAnswer = ByteArray(length - 1)
-                System.arraycopy(dataReceived, 1, apduAnswer, 0, apduAnswer.size);
+                System.arraycopy(dataReceived, 1, apduAnswer, 0, apduAnswer.size)
                 return apduAnswer
             }
-
         } finally {
-            AskReader.releaseLock()
+            ParagonReader.releaseLock()
         }
     }
 
     @Suppress("unused")
     fun clearInstance() {
-        AskReader.clearInstance()
-    }
-
-    /**
-     * Initialization of the state machine system for Observable reader
-     * We have to set All 4 states of monitoring states
-     */
-    override fun initStateService(): ObservableReaderStateService {
-        return ObservableReaderStateService.builder(this)
-            .waitForCardInsertionWithSmartDetection()
-            .waitForCardProcessingWithNativeDetection()
-            .waitForCardRemovalWithPollingDetection()
-            .build()
+        ParagonReader.clearInstance()
     }
 
     override fun isCurrentProtocol(readerProtocolName: String?): Boolean {
@@ -236,6 +256,7 @@ class AndroidCoppernicAskContactlessReaderImpl : AbstractObservableLocalReader(
     }
 
     override fun activateReaderProtocol(readerProtocolName: String?) {
+        Timber.d("$name: Activate protocol $readerProtocolName.")
         if (!protocolsMap.containsKey(readerProtocolName)) {
             throw KeypleReaderProtocolNotSupportedException(readerProtocolName)
         }
@@ -249,11 +270,25 @@ class AndroidCoppernicAskContactlessReaderImpl : AbstractObservableLocalReader(
         if (!readerProtocolName.isNullOrEmpty() && protocolsMap.containsKey(readerProtocolName)) {
             protocolsMap[readerProtocolName] = PROTOCOL_DEACTIVATED
         }
+        Timber.d("$name: Deactivate protocol $readerProtocolName.")
     }
 
     companion object {
         const val HUNT_PHASE_TIMEOUT = 0xFF.toByte()
         const val PROTOCOL_ACTIVATED = 1.toByte()
         const val PROTOCOL_DEACTIVATED = 0.toByte()
+    }
+
+    override fun onStartDetection() {
+        // Do nothing
+    }
+
+    override fun onStopDetection() {
+        // Do nothing
+    }
+
+    override fun unregister() {
+        super.unregister()
+        clearInstance()
     }
 }
