@@ -21,6 +21,7 @@ import org.eclipse.keyple.core.plugin.reader.AbstractObservableLocalReader
 import org.eclipse.keyple.core.plugin.reader.DontWaitForCardRemovalDuringProcessing
 import org.eclipse.keyple.core.plugin.reader.WaitForCardInsertionBlocking
 import org.eclipse.keyple.core.plugin.reader.WaitForCardRemovalNonBlocking
+import org.eclipse.keyple.core.service.event.ReaderObservationExceptionHandler
 import org.eclipse.keyple.core.service.exception.KeypleReaderIOException
 import org.eclipse.keyple.core.service.exception.KeypleReaderProtocolNotSupportedException
 import org.eclipse.keyple.core.util.ByteArrayUtil
@@ -30,7 +31,7 @@ import timber.log.Timber
  * Implementation of {@link org.eclipse.keyple.core.seproxy.SeReader} to communicate with NFC Tag
  * using ASK Coppernic library
  */
-class Cone2ContactlessReaderImpl : AbstractObservableLocalReader(
+class Cone2ContactlessReaderImpl(private val readerObservationExceptionHandler: ReaderObservationExceptionHandler) : AbstractObservableLocalReader(
     Cone2Plugin.PLUGIN_NAME,
     Cone2ContactlessReader.READER_NAME
 ), Cone2ContactlessReader,
@@ -290,5 +291,9 @@ class Cone2ContactlessReaderImpl : AbstractObservableLocalReader(
     override fun unregister() {
         super.unregister()
         clearInstance()
+    }
+
+    override fun getObservationExceptionHandler(): ReaderObservationExceptionHandler {
+        return readerObservationExceptionHandler
     }
 }

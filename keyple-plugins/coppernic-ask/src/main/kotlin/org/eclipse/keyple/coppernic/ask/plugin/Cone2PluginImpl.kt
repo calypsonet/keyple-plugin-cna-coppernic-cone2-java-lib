@@ -15,12 +15,13 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentMap
 import org.eclipse.keyple.core.plugin.AbstractPlugin
 import org.eclipse.keyple.core.service.Reader
+import org.eclipse.keyple.core.service.event.ReaderObservationExceptionHandler
 import timber.log.Timber
 
 /**
  * Handle native Readers mapped for Keyple
  */
-internal class Cone2PluginImpl : AbstractPlugin(Cone2Plugin.PLUGIN_NAME), Cone2Plugin {
+internal class Cone2PluginImpl(private val readerObservationExceptionHandler: ReaderObservationExceptionHandler) : AbstractPlugin(Cone2Plugin.PLUGIN_NAME), Cone2Plugin {
 
     override fun initNativeReaders(): ConcurrentMap<String, Reader> {
         Timber.w("Init native readers")
@@ -29,7 +30,7 @@ internal class Cone2PluginImpl : AbstractPlugin(Cone2Plugin.PLUGIN_NAME), Cone2P
         seReaders[sam1.name] = sam1
         val sam2 = Cone2ContactReaderImpl(Cone2ContactReaderImpl.ContactInterface.TWO)
         seReaders[sam2.name] = sam2
-        val nfc = Cone2ContactlessReaderImpl()
+        val nfc = Cone2ContactlessReaderImpl(readerObservationExceptionHandler)
         seReaders[nfc.name] = nfc
         return seReaders
     }

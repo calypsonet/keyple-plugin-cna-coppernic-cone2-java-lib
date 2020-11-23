@@ -13,7 +13,6 @@ package org.eclipse.keyple.coppernic.ask.example.activity
 
 import android.view.MenuItem
 import androidx.core.view.GravityCompat
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.android.synthetic.main.activity_main.drawerLayout
 import kotlinx.android.synthetic.main.activity_main.toolbar
 import kotlinx.coroutines.CoroutineScope
@@ -48,10 +47,12 @@ import org.eclipse.keyple.core.service.SmartCardService
 import org.eclipse.keyple.core.service.event.AbstractDefaultSelectionsResponse
 import org.eclipse.keyple.core.service.event.ObservableReader
 import org.eclipse.keyple.core.service.event.ReaderEvent
+import org.eclipse.keyple.core.service.event.ReaderObservationExceptionHandler
 import org.eclipse.keyple.core.service.exception.KeypleReaderException
 import org.eclipse.keyple.core.service.exception.KeypleReaderIOException
 import org.eclipse.keyple.core.util.ByteArrayUtil
 import timber.log.Timber
+import java.util.concurrent.atomic.AtomicBoolean
 
 class MainActivity : AbstractExampleActivity() {
 
@@ -90,7 +91,12 @@ class MainActivity : AbstractExampleActivity() {
             val pluginFactory: PluginFactory?
             try {
                 pluginFactory = withContext(Dispatchers.IO) {
-                    Cone2PluginFactory.init(applicationContext)
+                    Cone2PluginFactory.init(
+                        applicationContext,
+                        ReaderObservationExceptionHandler { pluginName, readerName, e ->
+                            Timber.e("An unexpected reader error occurred: $pluginName:$readerName : $e")
+                        }
+                    )
                 }
             } catch (e: KeypleReaderIOException) {
                 withContext(Dispatchers.Main) {
@@ -251,6 +257,9 @@ class MainActivity : AbstractExampleActivity() {
 
                             ReaderEvent.EventType.CARD_REMOVED -> {
                                 addResultEvent("PO removed")
+                            }
+                            else -> {
+                                //Do nothing
                             }
                         }
                     }

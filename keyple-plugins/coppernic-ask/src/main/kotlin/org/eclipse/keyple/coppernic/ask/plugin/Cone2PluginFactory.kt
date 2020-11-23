@@ -14,13 +14,17 @@ package org.eclipse.keyple.coppernic.ask.plugin
 import android.content.Context
 import org.eclipse.keyple.core.service.Plugin
 import org.eclipse.keyple.core.service.PluginFactory
+import org.eclipse.keyple.core.service.event.ReaderObservationExceptionHandler
 import org.eclipse.keyple.core.service.exception.KeypleReaderIOException
 
 object Cone2PluginFactory : PluginFactory {
 
+    lateinit var readerObservationExceptionHandler: ReaderObservationExceptionHandler
+
     @Throws(KeypleReaderIOException::class)
-    suspend fun init(context: Context): Cone2PluginFactory {
+    suspend fun init(context: Context, readerObservationExceptionHandler: ReaderObservationExceptionHandler): Cone2PluginFactory {
         val plugin = ParagonReader.init(context)
+        this.readerObservationExceptionHandler = readerObservationExceptionHandler
         return plugin?.let {
             this
         }
@@ -32,6 +36,6 @@ object Cone2PluginFactory : PluginFactory {
     }
 
     override fun getPlugin(): Plugin {
-        return Cone2PluginImpl()
+        return Cone2PluginImpl(readerObservationExceptionHandler)
     }
 }
