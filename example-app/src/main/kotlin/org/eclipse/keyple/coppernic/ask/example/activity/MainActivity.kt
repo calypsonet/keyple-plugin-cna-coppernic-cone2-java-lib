@@ -31,7 +31,6 @@ import org.eclipse.keyple.coppernic.ask.example.R
 import org.eclipse.keyple.coppernic.ask.example.util.CalypsoClassicInfo
 import org.eclipse.keyple.coppernic.ask.plugin.Cone2ContactReader
 import org.eclipse.keyple.coppernic.ask.plugin.Cone2ContactlessReader
-import org.eclipse.keyple.coppernic.ask.plugin.Cone2ContactlessReaderImpl
 import org.eclipse.keyple.coppernic.ask.plugin.Cone2PluginFactory
 import org.eclipse.keyple.coppernic.ask.plugin.ParagonSupportedContactProtocols
 import org.eclipse.keyple.coppernic.ask.plugin.ParagonSupportedContactlessProtocols
@@ -79,7 +78,7 @@ class MainActivity : AbstractExampleActivity() {
         if (!areReadersInitialized.get()) {
             initReaders()
         } else {
-            (poReader as Cone2ContactlessReaderImpl).startCardDetection(ObservableReader.PollingMode.REPEATING)
+            (poReader as ObservableReader).startCardDetection(ObservableReader.PollingMode.REPEATING)
         }
     }
 
@@ -122,7 +121,7 @@ class MainActivity : AbstractExampleActivity() {
             )
             areReadersInitialized.set(true)
 
-            (poReader as Cone2ContactlessReaderImpl).startCardDetection(ObservableReader.PollingMode.REPEATING)
+            (poReader as ObservableReader).startCardDetection(ObservableReader.PollingMode.REPEATING)
         }
 
 //        // Configuration of AndroidNfc Reader
@@ -145,7 +144,7 @@ class MainActivity : AbstractExampleActivity() {
     override fun onPause() {
         addActionEvent("Stopping PO Read Write Mode")
         if (areReadersInitialized.get()) {
-            (poReader as Cone2ContactlessReaderImpl).stopCardDetection()
+            (poReader as ObservableReader).stopCardDetection()
         }
         super.onPause()
     }

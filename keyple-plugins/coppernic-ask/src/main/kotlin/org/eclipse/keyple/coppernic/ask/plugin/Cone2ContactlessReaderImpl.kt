@@ -31,7 +31,7 @@ import timber.log.Timber
  * Implementation of {@link org.eclipse.keyple.core.seproxy.SeReader} to communicate with NFC Tag
  * using ASK Coppernic library
  */
-class Cone2ContactlessReaderImpl(private val readerObservationExceptionHandler: ReaderObservationExceptionHandler) : AbstractObservableLocalReader(
+internal class Cone2ContactlessReaderImpl(private val readerObservationExceptionHandler: ReaderObservationExceptionHandler) : AbstractObservableLocalReader(
     Cone2Plugin.PLUGIN_NAME,
     Cone2ContactlessReader.READER_NAME
 ), Cone2ContactlessReader,
