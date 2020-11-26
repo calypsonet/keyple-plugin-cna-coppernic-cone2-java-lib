@@ -13,6 +13,6 @@ package org.eclipse.keyple.coppernic.ask.plugin
 
 interface Cone2Plugin {
     companion object {
-        const val PLUGIN_NAME = "AndroidCoppernicAskPlugin"
+        const val PLUGIN_NAME = "Cone2Plugin"
     }
 }

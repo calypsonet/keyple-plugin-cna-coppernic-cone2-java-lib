@@ -160,14 +160,16 @@ abstract class AbstractExampleActivity : AppCompatActivity(),
     abstract fun initContentView()
     abstract fun initReaders()
 
+    /**
+     * check the availability of the SAM doing a ATR based selection, open its physical and
+     * logical channels and keep it open
+     */
     @Throws(KeypleReaderException::class, IllegalStateException::class)
     protected fun checkSamAndOpenChannel(samReader: Reader): CardResource<CalypsoSam> {
-        /*
-         * check the availability of the SAM doing a ATR based selection, open its physical and
-         * logical channels and keep it open
-         */
+        // Create a SAM resource after selecting the SAM
         val samSelection = CardSelection(MultiSelectionProcessing.FIRST_MATCH)
 
+        // Prepare selector
         val samProtocol = ParagonSupportedContactProtocols.INNOVATRON_HIGH_SPEED_PROTOCOL.name
         val samSelector =
             SamSelector.builder()
@@ -178,6 +180,7 @@ abstract class AbstractExampleActivity : AppCompatActivity(),
         samSelection.prepareSelection(SamSelectionRequest(samSelector))
 
         return try {
+            // Check if a SAM reader is present in the device
             if (samReader.isCardPresent) {
                 val calypsoSam =
                     samSelection.processExplicitSelection(samReader).activeSmartCard as CalypsoSam

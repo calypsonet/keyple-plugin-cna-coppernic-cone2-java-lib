@@ -11,13 +11,6 @@
  ********************************************************************************/
 package org.eclipse.keyple.coppernic.ask.plugin
 
-/**
- *
- *  created on 27/10/2020
- *
- *  @author youssefamrani
- */
-
 enum class ParagonSupportedContactProtocols {
     ISO_7816_3_T0,
     ISO_7816_3_T1,

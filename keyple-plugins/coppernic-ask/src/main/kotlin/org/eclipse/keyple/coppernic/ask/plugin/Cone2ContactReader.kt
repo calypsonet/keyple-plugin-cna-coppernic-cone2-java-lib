@@ -13,6 +13,9 @@ package org.eclipse.keyple.coppernic.ask.plugin
 
 interface Cone2ContactReader {
     companion object {
-        const val READER_NAME = "AndroidCoppernicAskContactReader"
+        const val READER_NAME = "Cone2ContactReader"
+
+        const val SAM_READER_1_NAME = "${READER_NAME}_1"
+        const val SAM_READER_2_NAME = "${READER_NAME}_2"
     }
 }

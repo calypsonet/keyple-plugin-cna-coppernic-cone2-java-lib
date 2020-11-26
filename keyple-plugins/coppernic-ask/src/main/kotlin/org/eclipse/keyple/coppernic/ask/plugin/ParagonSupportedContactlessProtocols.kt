@@ -11,13 +11,6 @@
  ********************************************************************************/
 package org.eclipse.keyple.coppernic.ask.plugin
 
-/**
- *
- *  created on 27/10/2020
- *
- *  @author youssefamrani
- */
-
 enum class ParagonSupportedContactlessProtocols {
     ISO_14443,
     ISO_14443_A,

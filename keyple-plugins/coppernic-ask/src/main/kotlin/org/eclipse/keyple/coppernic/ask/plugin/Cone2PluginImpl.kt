@@ -23,6 +23,9 @@ import timber.log.Timber
  */
 internal class Cone2PluginImpl(private val readerObservationExceptionHandler: ReaderObservationExceptionHandler) : AbstractPlugin(Cone2Plugin.PLUGIN_NAME), Cone2Plugin {
 
+    /**
+     * @see AbstractPlugin.initNativeReaders
+     */
     override fun initNativeReaders(): ConcurrentMap<String, Reader> {
         Timber.w("Init native readers")
         val seReaders = ConcurrentHashMap<String, Reader>()

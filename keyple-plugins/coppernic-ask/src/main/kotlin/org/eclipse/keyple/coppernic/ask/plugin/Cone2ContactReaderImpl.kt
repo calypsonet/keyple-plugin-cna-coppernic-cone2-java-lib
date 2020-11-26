@@ -31,25 +31,39 @@ internal class Cone2ContactReaderImpl(val contactInterface: ContactInterface) :
         "${Cone2ContactReader.READER_NAME}_${contactInterface.slotId}"
     ), Cone2ContactReader {
 
+    /**
+     * Represent the physical SAM slots available inside the Cone-2 device
+     */
     enum class ContactInterface(val slotId: Byte) {
         ONE(1.toByte()), TWO(2.toByte())
     }
 
+    // Currently activated SAM protocol
     private var currentSamProtocol: Byte? = null
+
+    // Currently activated SAM protocol name
     private var currentSamProtocolName: String? = null
 
+    // Instance of the Paragon NFC reader
     private val reader = ParagonReader.getInstance()
+
     private val apduOut = ByteArray(260)
     private val apduOutLen = IntArray(1)
     var atr: ByteArray? = null
 
+    /**
+     * @see AbstractLocalReader.getATR
+     */
     override fun getATR(): ByteArray? {
         return atr
     }
 
+    /**
+     * @see AbstractLocalReader.openPhysicalChannel
+     */
     override fun openPhysicalChannel() {
         try {
-            if(currentSamProtocol == null){
+            if (currentSamProtocol == null) {
                 throw IllegalStateException("Sam protocol is not defined")
             }
 
@@ -79,12 +93,18 @@ internal class Cone2ContactReaderImpl(val contactInterface: ContactInterface) :
         }
     }
 
+    /**
+     * @see AbstractLocalReader.isContactless
+     */
     override fun isContactless(): Boolean {
         return false
     }
 
+    /**
+     * @see AbstractLocalReader.activateReaderProtocol
+     */
     override fun activateReaderProtocol(readerProtocolName: String) {
-        when(readerProtocolName){
+        when (readerProtocolName) {
             ParagonSupportedContactProtocols.INNOVATRON_HIGH_SPEED_PROTOCOL.name -> {
                 currentSamProtocol = SAM_PROT_HSP_INNOVATRON
             }
@@ -100,21 +120,26 @@ internal class Cone2ContactReaderImpl(val contactInterface: ContactInterface) :
         Timber.d("$name: Activate protocol $readerProtocolName (= $currentSamProtocol).")
     }
 
+    /**
+     * @see AbstractLocalReader.deactivateReaderProtocol
+     */
     override fun deactivateReaderProtocol(readerProtocolName: String) {
-        if(currentSamProtocolName.isNullOrEmpty()){
+        if (currentSamProtocolName.isNullOrEmpty()) {
             throw IllegalStateException("No protocol currently activated")
         }
 
-        if(!readerProtocolName.equals(currentSamProtocolName)){
+        if (!readerProtocolName.equals(currentSamProtocolName)) {
             throw IllegalStateException("$readerProtocolName is not currently activated. Current SAM protocol is : $currentSamProtocolName")
-        }
-        else{
+        } else {
             currentSamProtocol = null
             currentSamProtocolName = null
             Timber.d("$name: Deactivate protocol $readerProtocolName.")
         }
     }
 
+    /**
+     * @see AbstractLocalReader.isCurrentProtocol
+     */
     override fun isCurrentProtocol(readerProtocolName: String?): Boolean {
         /*
          Based on C-One2 HF ASK technical specifications
@@ -126,10 +151,16 @@ internal class Cone2ContactReaderImpl(val contactInterface: ContactInterface) :
         return readerProtocolName == null || readerProtocolName == currentSamProtocolName
     }
 
+    /**
+     * @see AbstractLocalReader.isPhysicalChannelOpen
+     */
     override fun isPhysicalChannelOpen(): Boolean {
         return atr != null
     }
 
+    /**
+     * @see AbstractLocalReader.checkCardPresence
+     */
     override fun checkCardPresence(): Boolean {
         return try {
             ParagonReader.acquireLock()
@@ -144,10 +175,16 @@ internal class Cone2ContactReaderImpl(val contactInterface: ContactInterface) :
         }
     }
 
+    /**
+     * @see AbstractLocalReader.closePhysicalChannel
+     */
     override fun closePhysicalChannel() {
         atr = null
     }
 
+    /**
+     * @see AbstractLocalReader.transmitApdu
+     */
     override fun transmitApdu(apduIn: ByteArray): ByteArray {
         Timber.d("Data Length to be sent to tag : ${apduIn.size}")
         Timber.d("Data In : ${ByteArrayUtil.toHex(apduIn)}")

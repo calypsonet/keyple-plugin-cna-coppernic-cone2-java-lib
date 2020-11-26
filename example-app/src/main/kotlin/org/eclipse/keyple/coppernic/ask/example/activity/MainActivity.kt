@@ -13,6 +13,7 @@ package org.eclipse.keyple.coppernic.ask.example.activity
 
 import android.view.MenuItem
 import androidx.core.view.GravityCompat
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.android.synthetic.main.activity_main.drawerLayout
 import kotlinx.android.synthetic.main.activity_main.toolbar
 import kotlinx.coroutines.CoroutineScope
@@ -51,8 +52,10 @@ import org.eclipse.keyple.core.service.exception.KeypleReaderException
 import org.eclipse.keyple.core.service.exception.KeypleReaderIOException
 import org.eclipse.keyple.core.util.ByteArrayUtil
 import timber.log.Timber
-import java.util.concurrent.atomic.AtomicBoolean
 
+/**
+ * Activity launched on app start up that display the only screen available on this example app.
+ */
 class MainActivity : AbstractExampleActivity() {
 
     private var poReader: Reader? = null
@@ -71,10 +74,14 @@ class MainActivity : AbstractExampleActivity() {
         initActionBar(toolbar, "Keyple demo", "Coppernic Plugin 2")
     }
 
+    /**
+     * Called when the activity (screen) is first displayed or resumed from background
+     */
     override fun onResume() {
         super.onResume()
         addActionEvent("Enabling NFC Reader mode")
         addResultEvent("Please choose a use case")
+        // Check whether readers are already initialized (return from background) or not (first launch)
         if (!areReadersInitialized.get()) {
             initReaders()
         } else {
@@ -82,6 +89,9 @@ class MainActivity : AbstractExampleActivity() {
         }
     }
 
+    /**
+     * Initializes the PO reader (Contact Reader) and SAM reader (Contactless Reader)
+     */
     override fun initReaders() {
         Timber.d("initReaders")
         // Connexion to ASK lib take time, we've added a callback to this factory.
@@ -104,23 +114,36 @@ class MainActivity : AbstractExampleActivity() {
                 return@launch
             }
 
-            val askPlugin = SmartCardService.getInstance().registerPlugin(pluginFactory)
-            poReader = askPlugin.getReader(Cone2ContactlessReader.READER_NAME)
+            // Get the instance of the SmartCardService (Singleton pattern)
+            val smartCardService = SmartCardService.getInstance()
+
+            // Register the Coppernic with SmartCardService, get the corresponding generic Plugin in return
+            val paragonPlugin = smartCardService.registerPlugin(pluginFactory)
+
+            // Get and configure the PO reader
+            poReader = paragonPlugin.getReader(Cone2ContactlessReader.READER_NAME)
+
+            // Set the current activity as Observer of the PO reader
             (poReader as ObservableReader).addObserver(this@MainActivity)
 
+            // Activate protocols for the PO reader
             (poReader as ObservableReader).activateProtocol(
                 ParagonSupportedContactlessProtocols.ISO_14443.name,
                 ParagonSupportedContactlessProtocols.ISO_14443.name
             )
 
-            samReader = askPlugin.readers[SAM_READER_1_NAME]!!
+            // Get and configure the SAM reader
+            samReader = paragonPlugin.readers[Cone2ContactReader.SAM_READER_1_NAME]!!
 
+            // Activate protocols for the SAM reader
             (samReader as AbstractLocalReader).activateProtocol(
                 ParagonSupportedContactProtocols.INNOVATRON_HIGH_SPEED_PROTOCOL.name,
                 ParagonSupportedContactProtocols.INNOVATRON_HIGH_SPEED_PROTOCOL.name
             )
+
             areReadersInitialized.set(true)
 
+            // Start the NFC detection
             (poReader as ObservableReader).startCardDetection(ObservableReader.PollingMode.REPEATING)
         }
 
@@ -141,19 +164,28 @@ class MainActivity : AbstractExampleActivity() {
 //        samReader = samPlugin.getReader(AndroidFamocoReader.READER_NAME)
     }
 
+    /**
+     * Called when the activity (screen) is destroyed or put in background
+     */
     override fun onPause() {
         addActionEvent("Stopping PO Read Write Mode")
         if (areReadersInitialized.get()) {
+            // Stop NFC card detection
             (poReader as ObservableReader).stopCardDetection()
         }
         super.onPause()
     }
 
+    /**
+     * Called when the activity (screen) is destroyed
+     */
     override fun onDestroy() {
         poReader?.let {
+            // stop propagating the reader events
             (poReader as ObservableReader).removeObserver(this)
         }
 
+        // Unregister the Coppernic plugin
         SmartCardService.getInstance().plugins.forEach {
             SmartCardService.getInstance().unregisterPlugin(it.key)
         }
@@ -258,7 +290,7 @@ class MainActivity : AbstractExampleActivity() {
                                 addResultEvent("PO removed")
                             }
                             else -> {
-                                //Do nothing
+                                // Do nothing
                             }
                         }
                     }
@@ -480,8 +512,8 @@ class MainActivity : AbstractExampleActivity() {
                         poTransaction.processPoCommands()
 
                         /*
-                             * A ratification command will be sent (CONTACTLESS_MODE).
-                             */
+                         * A ratification command will be sent (CONTACTLESS_MODE).
+                         */
                         poTransaction.prepareDecreaseCounter(
                             CalypsoClassicInfo.SFI_Counter1,
                             CalypsoClassicInfo.RECORD_NUMBER_1.toInt(),
@@ -514,11 +546,5 @@ class MainActivity : AbstractExampleActivity() {
             Timber.e(e)
             addResultEvent("Exception: ${e.message}")
         }
-    }
-
-    companion object {
-        private const val SAM_READER_SLOT_1 = "1"
-        const val SAM_READER_1_NAME =
-            "${Cone2ContactReader.READER_NAME}_$SAM_READER_SLOT_1"
     }
 }
