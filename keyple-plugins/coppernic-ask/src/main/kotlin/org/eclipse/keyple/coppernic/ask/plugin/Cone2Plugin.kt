@@ -9,16 +9,10 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  ********************************************************************************/
-package org.eclipse.keyple.coppernic.ask.plugin.utils
+package org.eclipse.keyple.coppernic.ask.plugin
 
-import kotlin.coroutines.Continuation
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withTimeoutOrNull
-
-suspend inline fun <T> suspendCoroutineWithTimeout(timeout: Long, crossinline block: (Continuation<T>) -> Unit): T? {
-    var finalValue: T? = null
-    withTimeoutOrNull(timeout) {
-        finalValue = suspendCancellableCoroutine(block = block)
+interface Cone2Plugin {
+    companion object {
+        const val PLUGIN_NAME = "Cone2Plugin"
     }
-    return finalValue
 }

@@ -9,16 +9,10 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  ********************************************************************************/
-package org.eclipse.keyple.coppernic.ask.plugin.utils
+package org.eclipse.keyple.coppernic.ask.plugin
 
-import kotlin.coroutines.Continuation
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withTimeoutOrNull
-
-suspend inline fun <T> suspendCoroutineWithTimeout(timeout: Long, crossinline block: (Continuation<T>) -> Unit): T? {
-    var finalValue: T? = null
-    withTimeoutOrNull(timeout) {
-        finalValue = suspendCancellableCoroutine(block = block)
-    }
-    return finalValue
+enum class ParagonSupportedContactProtocols {
+    ISO_7816_3_T0,
+    ISO_7816_3_T1,
+    INNOVATRON_HIGH_SPEED_PROTOCOL
 }

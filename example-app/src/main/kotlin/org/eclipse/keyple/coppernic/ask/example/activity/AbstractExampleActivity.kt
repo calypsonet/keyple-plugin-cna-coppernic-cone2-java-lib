@@ -37,6 +37,7 @@ import org.eclipse.keyple.coppernic.ask.example.R
 import org.eclipse.keyple.coppernic.ask.example.adapter.EventAdapter
 import org.eclipse.keyple.coppernic.ask.example.model.ChoiceEventModel
 import org.eclipse.keyple.coppernic.ask.example.model.EventModel
+import org.eclipse.keyple.coppernic.ask.plugin.ParagonSupportedContactProtocols
 import org.eclipse.keyple.core.card.selection.CardResource
 import org.eclipse.keyple.core.card.selection.CardSelection
 import org.eclipse.keyple.core.card.selection.MultiSelectionProcessing
@@ -44,7 +45,6 @@ import org.eclipse.keyple.core.service.Reader
 import org.eclipse.keyple.core.service.event.ObservableReader
 import org.eclipse.keyple.core.service.event.ReaderEvent
 import org.eclipse.keyple.core.service.exception.KeypleReaderException
-import org.eclipse.keyple.core.service.util.ContactsCardCommonProtocols
 import timber.log.Timber
 
 abstract class AbstractExampleActivity : AppCompatActivity(),
@@ -92,8 +92,6 @@ abstract class AbstractExampleActivity : AppCompatActivity(),
         drawerLayout.addDrawerListener(toggle)
         toggle.syncState()
 
-        //initReaders()
-
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
@@ -108,7 +106,7 @@ abstract class AbstractExampleActivity : AppCompatActivity(),
         val builder = AlertDialog.Builder(this@AbstractExampleActivity)
         builder.setTitle(R.string.alert_dialog_title)
         builder.setMessage(getString(R.string.alert_dialog_message, t.message))
-        if(finish){
+        if (finish) {
             builder.setNegativeButton(R.string.quit) { _, _ ->
                 finish()
             }
@@ -162,21 +160,27 @@ abstract class AbstractExampleActivity : AppCompatActivity(),
     abstract fun initContentView()
     abstract fun initReaders()
 
+    /**
+     * check the availability of the SAM doing a ATR based selection, open its physical and
+     * logical channels and keep it open
+     */
     @Throws(KeypleReaderException::class, IllegalStateException::class)
     protected fun checkSamAndOpenChannel(samReader: Reader): CardResource<CalypsoSam> {
-        /*
-         * check the availability of the SAM doing a ATR based selection, open its physical and
-         * logical channels and keep it open
-         */
+        // Create a SAM resource after selecting the SAM
         val samSelection = CardSelection(MultiSelectionProcessing.FIRST_MATCH)
 
-        val protocolIso = ContactsCardCommonProtocols.ISO_7816_3.name
-        val samSelector = SamSelector.builder().cardProtocol(protocolIso)
-            .samRevision(SamRevision.C1).build()
+        // Prepare selector
+        val samProtocol = ParagonSupportedContactProtocols.INNOVATRON_HIGH_SPEED_PROTOCOL.name
+        val samSelector =
+            SamSelector.builder()
+                .cardProtocol(samProtocol)
+                .samRevision(SamRevision.C1)
+                .build()
 
         samSelection.prepareSelection(SamSelectionRequest(samSelector))
 
         return try {
+            // Check if a SAM reader is present in the device
             if (samReader.isCardPresent) {
                 val calypsoSam =
                     samSelection.processExplicitSelection(samReader).activeSmartCard as CalypsoSam
