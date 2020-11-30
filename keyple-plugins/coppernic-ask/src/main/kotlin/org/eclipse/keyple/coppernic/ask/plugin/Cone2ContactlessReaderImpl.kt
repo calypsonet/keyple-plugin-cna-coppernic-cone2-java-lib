@@ -16,11 +16,11 @@ import fr.coppernic.sdk.ask.RfidTag
 import fr.coppernic.sdk.ask.sCARD_SearchExt
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.experimental.or
-import org.eclipse.keyple.core.plugin.reader.AbstractLocalReader
-import org.eclipse.keyple.core.plugin.reader.AbstractObservableLocalReader
-import org.eclipse.keyple.core.plugin.reader.DontWaitForCardRemovalDuringProcessing
-import org.eclipse.keyple.core.plugin.reader.WaitForCardInsertionBlocking
-import org.eclipse.keyple.core.plugin.reader.WaitForCardRemovalNonBlocking
+import org.eclipse.keyple.core.plugin.AbstractLocalReader
+import org.eclipse.keyple.core.plugin.AbstractObservableLocalReader
+import org.eclipse.keyple.core.plugin.DontWaitForCardRemovalDuringProcessing
+import org.eclipse.keyple.core.plugin.WaitForCardInsertionBlocking
+import org.eclipse.keyple.core.plugin.WaitForCardRemovalNonBlocking
 import org.eclipse.keyple.core.service.event.ReaderObservationExceptionHandler
 import org.eclipse.keyple.core.service.exception.KeypleReaderIOException
 import org.eclipse.keyple.core.service.exception.KeypleReaderProtocolNotSupportedException

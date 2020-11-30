@@ -40,7 +40,7 @@ import org.eclipse.keyple.core.card.selection.CardSelection
 import org.eclipse.keyple.core.card.selection.CardSelector
 import org.eclipse.keyple.core.card.selection.MultiSelectionProcessing
 import org.eclipse.keyple.core.card.selection.SelectionsResult
-import org.eclipse.keyple.core.plugin.reader.AbstractLocalReader
+import org.eclipse.keyple.core.plugin.AbstractLocalReader
 import org.eclipse.keyple.core.service.PluginFactory
 import org.eclipse.keyple.core.service.Reader
 import org.eclipse.keyple.core.service.SmartCardService

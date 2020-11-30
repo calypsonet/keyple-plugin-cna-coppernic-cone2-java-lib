@@ -16,7 +16,7 @@ import fr.coppernic.sdk.ask.Defines.SAM_PROT_HSP_INNOVATRON
 import fr.coppernic.sdk.ask.Defines.SAM_PROT_ISO_7816_T0
 import fr.coppernic.sdk.ask.Defines.SAM_PROT_ISO_7816_T1
 import fr.coppernic.sdk.utils.core.CpcBytes
-import org.eclipse.keyple.core.plugin.reader.AbstractLocalReader
+import org.eclipse.keyple.core.plugin.AbstractLocalReader
 import org.eclipse.keyple.core.service.exception.KeypleReaderIOException
 import org.eclipse.keyple.core.util.ByteArrayUtil
 import timber.log.Timber
