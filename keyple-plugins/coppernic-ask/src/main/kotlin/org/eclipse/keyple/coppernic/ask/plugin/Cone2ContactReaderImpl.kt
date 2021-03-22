@@ -16,6 +16,7 @@ import fr.coppernic.sdk.ask.Defines.SAM_PROT_HSP_INNOVATRON
 import fr.coppernic.sdk.ask.Defines.SAM_PROT_ISO_7816_T0
 import fr.coppernic.sdk.ask.Defines.SAM_PROT_ISO_7816_T1
 import fr.coppernic.sdk.utils.core.CpcBytes
+import fr.devnied.bitlib.BytesUtils
 import org.eclipse.keyple.core.plugin.AbstractLocalReader
 import org.eclipse.keyple.core.service.exception.KeypleReaderIOException
 import org.eclipse.keyple.core.util.ByteArrayUtil
@@ -190,13 +191,13 @@ internal class Cone2ContactReaderImpl(val contactInterface: ContactInterface) :
         Timber.d("Data In : ${ByteArrayUtil.toHex(apduIn)}")
         try {
             ParagonReader.acquireLock()
-            Timber.d("KEYPLE-APDU-SAM - Data Length to be sent to tag : ${apduIn.size}")
-            Timber.d("KEYPLE-APDU-SAM - Data In : ${ByteArrayUtil.toHex(apduIn)}")
+            Timber.d("Data Length to be sent to tag : ${apduIn.size}")
+            Timber.d("KEYPLE-APDU-SAM - transmitApdu apduIn : ${BytesUtils.bytesToString(apduIn)}")
             val result = reader.cscIsoCommandSam(apduIn, apduIn.size, apduOut, apduOutLen)
-            Timber.d("KEYPLE-APDU-SAM - Data Out : ${ByteArrayUtil.toHex(apduOut)}")
+            Timber.d("KEYPLE-APDU-SAM - transmitApdu apduResponse : ${BytesUtils.bytesToString(apduOut)}")
 
             if (result != RCSC_Ok) {
-                Timber.d("KEYPLE-APDU-SAM - throw KeypleReaderIOException")
+                Timber.d("result != RCSC_Ok -> throw KeypleReaderIOException")
                 throw KeypleReaderIOException("cscIsoCommandSam failde with code: $result")
             } else {
                 if (apduOutLen[0] >= 2) {

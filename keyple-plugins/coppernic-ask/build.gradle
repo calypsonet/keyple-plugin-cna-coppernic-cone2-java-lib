@@ -132,6 +132,11 @@ dependencies {
     implementation "com.jakewharton.timber:timber:$timber_version" //Android
     implementation "com.arcao:slf4j-timber:$slf4j_timber_version@aar" //SLF4J binding for Timber
 
+    // Devnied - Byte Utils
+    implementation('com.github.devnied:bit-lib4j:1.4.5') {
+        exclude group: 'org.slf4j'
+    }
+
     testImplementation "junit:junit:$junit_version"
     testImplementation files('libs/lib-secommunication-1.7.0.jar')
     /** Mocking for tests **/

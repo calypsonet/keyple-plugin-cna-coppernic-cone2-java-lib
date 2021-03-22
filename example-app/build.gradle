@@ -10,6 +10,7 @@ android {
         applicationId "org.eclipse.keyple.coppernic.ask.example"
         minSdkVersion 19
         targetSdkVersion 29
+        multiDexEnabled true
         versionCode 1
         versionName "1.0"
 
@@ -52,6 +53,9 @@ dependencies {
     implementation project(path: ':keyple-plugins:coppernic-ask')
 
     implementation "com.jakewharton.timber:timber:$timber_version" //Android
+
+    //Multidex
+    implementation 'com.android.support:multidex:1.0.3'
 
     testImplementation "junit:junit:$junit_version"
 

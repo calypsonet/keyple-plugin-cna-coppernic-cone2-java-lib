@@ -12,11 +12,18 @@
 package org.eclipse.keyple.coppernic.ask.example
 
 import android.app.Application
+import android.content.Context
+import androidx.multidex.MultiDex
 import timber.log.Timber
 
 class DemoApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         Timber.plant(Timber.DebugTree())
+    }
+
+    override fun attachBaseContext(context: Context?) {
+        super.attachBaseContext(context)
+        MultiDex.install(this)
     }
 }

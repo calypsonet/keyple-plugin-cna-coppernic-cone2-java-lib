@@ -14,6 +14,7 @@ package org.eclipse.keyple.coppernic.ask.plugin
 import fr.coppernic.sdk.ask.Defines
 import fr.coppernic.sdk.ask.RfidTag
 import fr.coppernic.sdk.ask.sCARD_SearchExt
+import fr.devnied.bitlib.BytesUtils
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.experimental.or
 import org.eclipse.keyple.core.plugin.AbstractLocalReader
@@ -261,10 +262,10 @@ internal class Cone2ContactlessReaderImpl(private val readerObservationException
             val dataReceived = ByteArray(256)
             val dataReceivedLength = IntArray(1)
 
-            Timber.d("KEYPLE-APDU-SAM - Data Length to be sent to tag : ${apduIn.size}")
-            Timber.d("KEYPLE-APDU-SAM - Data In : ${ByteArrayUtil.toHex(apduIn)}")
+            Timber.d("Data Length to be sent to tag : ${apduIn.size}")
+            Timber.d("KEYPLE-APDU - transmit() : ${BytesUtils.bytesToString(apduIn)}")
             reader.cscISOCommand(apduIn, apduIn.size, dataReceived, dataReceivedLength)
-            Timber.d("KEYPLE-APDU-SAM - Data Out : ${ByteArrayUtil.toHex(dataReceived)}")
+            Timber.d("KEYPLE-APDU - TransmitResult : ${BytesUtils.bytesToString(dataReceived)}")
 
             val length = dataReceivedLength[0]
 
