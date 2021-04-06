@@ -11,7 +11,9 @@
  ********************************************************************************/
 package org.eclipse.keyple.coppernic.ask.plugin
 
-interface Cone2ContactReader {
+import org.eclipse.keyple.core.common.KeypleReaderExtension
+
+interface Cone2ContactReader: KeypleReaderExtension {
     companion object {
         const val READER_NAME = "Cone2ContactReader"
 

@@ -14,30 +14,28 @@ package org.eclipse.keyple.coppernic.ask.plugin
 import fr.coppernic.sdk.ask.Defines
 import fr.coppernic.sdk.ask.RfidTag
 import fr.coppernic.sdk.ask.sCARD_SearchExt
-import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.experimental.or
-import org.eclipse.keyple.core.plugin.AbstractLocalReader
-import org.eclipse.keyple.core.plugin.AbstractObservableLocalReader
-import org.eclipse.keyple.core.plugin.DontWaitForCardRemovalDuringProcessing
-import org.eclipse.keyple.core.plugin.WaitForCardInsertionBlocking
-import org.eclipse.keyple.core.plugin.WaitForCardRemovalNonBlocking
-import org.eclipse.keyple.core.service.event.ReaderObservationExceptionHandler
-import org.eclipse.keyple.core.service.exception.KeypleReaderIOException
-import org.eclipse.keyple.core.service.exception.KeypleReaderProtocolNotSupportedException
+import org.eclipse.keyple.core.plugin.CardIOException
+import org.eclipse.keyple.core.plugin.ReaderIOException
+import org.eclipse.keyple.core.plugin.spi.reader.ReaderSpi
+import org.eclipse.keyple.core.plugin.spi.reader.observable.ObservableReaderSpi
+import org.eclipse.keyple.core.plugin.spi.reader.observable.state.insertion.WaitForCardInsertionBlockingSpi
+import org.eclipse.keyple.core.plugin.spi.reader.observable.state.processing.DontWaitForCardRemovalDuringProcessingSpi
+import org.eclipse.keyple.core.plugin.spi.reader.observable.state.removal.WaitForCardRemovalNonBlockingSpi
 import org.eclipse.keyple.core.util.ByteArrayUtil
 import timber.log.Timber
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.experimental.or
 
 /**
  * Implementation of {@link org.eclipse.keyple.core.seproxy.SeReader} to communicate with NFC Tag
  * using ASK Coppernic library
  */
-internal class Cone2ContactlessReaderImpl(private val readerObservationExceptionHandler: ReaderObservationExceptionHandler) : AbstractObservableLocalReader(
-    Cone2Plugin.PLUGIN_NAME,
-    Cone2ContactlessReader.READER_NAME
-), Cone2ContactlessReader,
-    WaitForCardInsertionBlocking,
-    DontWaitForCardRemovalDuringProcessing,
-    WaitForCardRemovalNonBlocking {
+internal class Cone2ContactlessReaderAdapter :
+    ObservableReaderSpi,
+    Cone2ContactlessReader,
+    WaitForCardInsertionBlockingSpi,
+    DontWaitForCardRemovalDuringProcessingSpi,
+    WaitForCardRemovalNonBlockingSpi {
 
     // Map used to store the activated contactless communication protocols
     private val protocolsMap = mutableMapOf<String, Byte>()
@@ -97,21 +95,21 @@ internal class Cone2ContactlessReaderImpl(private val readerObservationException
     }
 
     /**
-     * @see AbstractLocalReader.checkCardPresence
+     * @see ReaderSpi.checkCardPresence
      */
     override fun checkCardPresence(): Boolean {
         return isCardDiscovered.get()
     }
 
     /**
-     * @see AbstractLocalReader.getATR
+     * @see ReaderSpi.getPowerOnData
      */
-    override fun getATR(): ByteArray? {
-        return rfidTag?.atr
+    override fun getPowerOnData(): String {
+        return ByteArrayUtil.toHex(rfidTag?.atr)
     }
 
     /**
-     * @see AbstractLocalReader.openPhysicalChannel
+     * @see ReaderSpi.openPhysicalChannel
      */
     override fun openPhysicalChannel() {
         Timber.d("openPhysicalChannel")
@@ -119,7 +117,7 @@ internal class Cone2ContactlessReaderImpl(private val readerObservationException
     }
 
     /**
-     * @see AbstractLocalReader.closePhysicalChannel
+     * @see ReaderSpi.closePhysicalChannel
      */
     override fun closePhysicalChannel() {
         Timber.d("closePhysicalChannel")
@@ -127,7 +125,7 @@ internal class Cone2ContactlessReaderImpl(private val readerObservationException
     }
 
     /**
-     * @see AbstractLocalReader.isPhysicalChannelOpen
+     * @see ReaderSpi.isPhysicalChannelOpen
      */
     override fun isPhysicalChannelOpen(): Boolean {
         Timber.d("isPhysicalChannelOpen: ${isPhysicalChannelOpened.get()}")
@@ -135,13 +133,13 @@ internal class Cone2ContactlessReaderImpl(private val readerObservationException
     }
 
     /**
-     * @see WaitForCardInsertionBlocking.waitForCardPresent
+     * @see WaitForCardInsertionBlockingSpi.waitForCardInsertion
      */
-    override fun waitForCardPresent(): Boolean {
-        Timber.d("waitForCardPresent")
+    override fun waitForCardInsertion() {
+        Timber.d("waitForCardInsertion")
         var ret = false
         isWaitingForCard.set(true)
-//        AskReader.acquireLock()
+        // AskReader.acquireLock()
         // Entering a loop with successive hunts for card
         while (isWaitingForCard.get()) {
             val rfidTag = enterHuntPhase()
@@ -155,13 +153,12 @@ internal class Cone2ContactlessReaderImpl(private val readerObservationException
         }
         // This allows synchronisation with Plugin when powering off the reader
 //        AskReader.releaseLock()
-        return ret
     }
 
     /**
-     * @see WaitForCardInsertionBlocking.stopWaitForCard
+     * @see WaitForCardInsertionBlockingSpi.stopWaitForCardInsertion
      */
-    override fun stopWaitForCard() {
+    override fun stopWaitForCardInsertion() {
         Timber.d("stopWaitForCard")
         isWaitingForCard.set(false)
     }
@@ -252,7 +249,7 @@ internal class Cone2ContactlessReaderImpl(private val readerObservationException
     }
 
     /**
-     * @see AbstractLocalReader.transmitApdu
+     * @see ReaderSpi.transmitApdu
      */
     override fun transmitApdu(apduIn: ByteArray): ByteArray {
         Timber.d("transmitApdu")
@@ -261,15 +258,15 @@ internal class Cone2ContactlessReaderImpl(private val readerObservationException
             val dataReceived = ByteArray(256)
             val dataReceivedLength = IntArray(1)
 
-            Timber.d("KEYPLE-APDU-SAM - Data Length to be sent to tag : ${apduIn.size}")
-            Timber.d("KEYPLE-APDU-SAM - Data In : ${ByteArrayUtil.toHex(apduIn)}")
+            Timber.d("KEYPLE-APDU - Data Length to be sent to tag : ${apduIn.size}")
+            Timber.d("KEYPLE-APDU - Data In : ${ByteArrayUtil.toHex(apduIn)}")
             reader.cscISOCommand(apduIn, apduIn.size, dataReceived, dataReceivedLength)
-            Timber.d("KEYPLE-APDU-SAM - Data Out : ${ByteArrayUtil.toHex(dataReceived)}")
+            Timber.d("KEYPLE-APDU - Data Out : ${ByteArrayUtil.toHex(dataReceived)}")
 
             val length = dataReceivedLength[0]
 
             if (length < 2) {
-                throw KeypleReaderIOException("Incorrect APDU Answer")
+                throw CardIOException("Incorrect APDU Answer")
             } else {
                 val apduAnswer = ByteArray(length - 1)
                 System.arraycopy(dataReceived, 1, apduAnswer, 0, apduAnswer.size)
@@ -281,48 +278,46 @@ internal class Cone2ContactlessReaderImpl(private val readerObservationException
     }
 
     /**
-     * Clear Paragon reader instance
-     */
-    private fun clearInstance() {
-        ParagonReader.clearInstance()
-    }
-
-    /**
-     * @see AbstractLocalReader.isCurrentProtocol
-     */
-    override fun isCurrentProtocol(readerProtocolName: String?): Boolean {
-        return readerProtocolName == null || protocolsMap.containsKey(readerProtocolName) && protocolsMap[readerProtocolName] == PROTOCOL_ACTIVATED
-    }
-
-    /**
-     * @see AbstractLocalReader.isContactless
+     * @see ReaderSpi.isContactless
      */
     override fun isContactless(): Boolean {
         return true
     }
 
     /**
-     * @see AbstractLocalReader.activateReaderProtocol
+     * @see ReaderSpi.activateProtocol
      */
-    override fun activateReaderProtocol(readerProtocolName: String?) {
-        Timber.d("$name: Activate protocol $readerProtocolName.")
-        if (!protocolsMap.containsKey(readerProtocolName)) {
-            throw KeypleReaderProtocolNotSupportedException(readerProtocolName)
+    override fun activateProtocol(readerProtocol: String?) {
+        Timber.d("$name: Activate protocol $readerProtocol.")
+        if (!protocolsMap.containsKey(readerProtocol)) {
+            throw IllegalArgumentException("activateProtocol - Activate protocol error : not found")
         }
 
-        readerProtocolName?.let {
+        readerProtocol?.let {
             protocolsMap[it] = PROTOCOL_ACTIVATED
         }
     }
 
     /**
-     * @see AbstractLocalReader.deactivateReaderProtocol
+     * @see ReaderSpi.deactivateProtocol
      */
-    override fun deactivateReaderProtocol(readerProtocolName: String?) {
-        if (!readerProtocolName.isNullOrEmpty() && protocolsMap.containsKey(readerProtocolName)) {
-            protocolsMap[readerProtocolName] = PROTOCOL_DEACTIVATED
+    override fun deactivateProtocol(readerProtocol: String?) {
+        if (!readerProtocol.isNullOrEmpty() && protocolsMap.containsKey(readerProtocol)) {
+            protocolsMap[readerProtocol] = PROTOCOL_DEACTIVATED
         }
-        Timber.d("$name: Deactivate protocol $readerProtocolName.")
+        Timber.d("$name: Deactivate protocol $readerProtocol.")
+    }
+
+    /**
+     * @see ReaderSpi.isProtocolSupported
+     */
+    override fun isProtocolSupported(readerProtocol: String?): Boolean = !readerProtocol.isNullOrEmpty() && protocolsMap.containsKey(readerProtocol)
+
+    /**
+     * @see ReaderSpi.isCurrentProtocol
+     */
+    override fun isCurrentProtocol(readerProtocolName: String?): Boolean {
+        return readerProtocolName == null || protocolsMap.containsKey(readerProtocolName) && protocolsMap[readerProtocolName] == PROTOCOL_ACTIVATED
     }
 
     companion object {
@@ -331,26 +326,26 @@ internal class Cone2ContactlessReaderImpl(private val readerObservationException
         const val PROTOCOL_DEACTIVATED = 0.toByte()
     }
 
+    /**
+     * @see ObservableReaderSpi.onStartDetection
+     */
     override fun onStartDetection() {
         // Do nothing
     }
 
+    /**
+     * @see ObservableReaderSpi.onStopDetection
+     */
     override fun onStopDetection() {
         // Do nothing
     }
 
     /**
-     * @see AbstractObservableLocalReader.unregister
+     * @see ReaderSpi.unregister
      */
-    override fun unregister() {
-        super.unregister()
-        clearInstance()
+    override fun onUnregister() {
+        ParagonReader.clearInstance()
     }
 
-    /**
-     * @see AbstractObservableLocalReader.getObservationExceptionHandler
-     */
-    override fun getObservationExceptionHandler(): ReaderObservationExceptionHandler {
-        return readerObservationExceptionHandler
-    }
+    override fun getName(): String = Cone2ContactlessReader.READER_NAME
 }

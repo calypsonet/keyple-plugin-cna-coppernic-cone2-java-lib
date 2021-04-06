@@ -11,31 +11,6 @@
  ********************************************************************************/
 package org.eclipse.keyple.coppernic.ask.plugin
 
-import android.content.Context
-import org.eclipse.keyple.core.service.Plugin
-import org.eclipse.keyple.core.service.PluginFactory
-import org.eclipse.keyple.core.service.event.ReaderObservationExceptionHandler
-import org.eclipse.keyple.core.service.exception.KeypleReaderIOException
+import org.eclipse.keyple.core.common.KeyplePluginExtensionFactory
 
-object Cone2PluginFactory : PluginFactory {
-
-    lateinit var readerObservationExceptionHandler: ReaderObservationExceptionHandler
-
-    @Throws(KeypleReaderIOException::class)
-    suspend fun init(context: Context, readerObservationExceptionHandler: ReaderObservationExceptionHandler): Cone2PluginFactory {
-        val plugin = ParagonReader.init(context)
-        this.readerObservationExceptionHandler = readerObservationExceptionHandler
-        return plugin?.let {
-            this
-        }
-        ?: throw KeypleReaderIOException("Could not init Ask Library")
-    }
-
-    override fun getPluginName(): String {
-        return Cone2Plugin.PLUGIN_NAME
-    }
-
-    override fun getPlugin(): Plugin {
-        return Cone2PluginImpl(readerObservationExceptionHandler)
-    }
-}
+interface Cone2PluginFactory : KeyplePluginExtensionFactory

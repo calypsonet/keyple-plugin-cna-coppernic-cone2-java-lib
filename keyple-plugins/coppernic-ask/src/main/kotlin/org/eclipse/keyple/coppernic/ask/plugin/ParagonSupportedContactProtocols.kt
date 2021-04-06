@@ -14,5 +14,17 @@ package org.eclipse.keyple.coppernic.ask.plugin
 enum class ParagonSupportedContactProtocols {
     ISO_7816_3_T0,
     ISO_7816_3_T1,
-    INNOVATRON_HIGH_SPEED_PROTOCOL
+    INNOVATRON_HIGH_SPEED_PROTOCOL;
+
+
+    companion object {
+        fun findEnumByKey(key: String): ParagonSupportedContactProtocols {
+            for (value in values()) {
+                if (value.name == key) {
+                    return value
+                }
+            }
+            throw IllegalStateException("ParagonSupportedContactProtocols '$key' is not defined")
+        }
+    }
 }

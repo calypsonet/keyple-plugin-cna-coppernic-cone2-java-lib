@@ -20,17 +20,15 @@ import fr.coppernic.sdk.power.api.peripheral.Peripheral
 import fr.coppernic.sdk.power.impl.cone.ConePeripheral
 import fr.coppernic.sdk.utils.core.CpcResult
 import fr.coppernic.sdk.utils.io.InstanceListener
+import org.eclipse.keyple.coppernic.ask.plugin.utils.suspendCoroutineWithTimeout
+import org.eclipse.keyple.core.plugin.ReaderIOException
+import timber.log.Timber
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import org.eclipse.keyple.coppernic.ask.plugin.utils.suspendCoroutineWithTimeout
-import org.eclipse.keyple.core.service.exception.KeyplePluginInstantiationException
-import org.eclipse.keyple.core.service.exception.KeypleReaderException
-import org.eclipse.keyple.core.service.exception.KeypleReaderIOException
-import timber.log.Timber
 
 /**
  * Provides one instance of ASK reader to be shared between contact and contactless reader.
@@ -54,7 +52,7 @@ internal object ParagonReader : PowerListener {
     /**
      * Init the reader, is call when instanciating this plugin's factory
      */
-    @Throws(Exception::class)
+    @Throws(ReaderIOException::class)
     suspend fun init(context: Context): Reader? {
         if (!isInitied.get()) {
             Timber.d("Start Init")
@@ -79,7 +77,7 @@ internal object ParagonReader : PowerListener {
                                 reader.cscOpen(Defines.SerialDefines.ASK_READER_PORT, 115200, false)
                             if (result != fr.coppernic.sdk.ask.Defines.RCSC_Ok) {
                                 Timber.e("Error while cscOpen: $result")
-                                continuation.resumeWithException(KeypleReaderIOException("Error while cscOpen: $result"))
+                                continuation.resumeWithException(ReaderIOException("Error while cscOpen: $result"))
                                 return
                             }
                             // Initializes reader
@@ -105,7 +103,7 @@ internal object ParagonReader : PowerListener {
 
                 return reader
             } else {
-                throw KeyplePluginInstantiationException("An error occured during Copernic AskReader power up.")
+                throw ReaderIOException("An error occured during Copernic AskReader power up.")
             }
         } else {
             return null
@@ -115,11 +113,11 @@ internal object ParagonReader : PowerListener {
     /**
      * Get Reader instance
      */
-    @Throws(KeypleReaderException::class)
+    @Throws(ReaderIOException::class)
     fun getInstance(): Reader {
         Timber.d("Get Instance")
         if (!isInitied.get()) {
-            throw KeypleReaderIOException("Ask Reader not inited")
+            throw ReaderIOException("Ask Reader not inited")
         }
         return uniqueInstance.get()!!
     }

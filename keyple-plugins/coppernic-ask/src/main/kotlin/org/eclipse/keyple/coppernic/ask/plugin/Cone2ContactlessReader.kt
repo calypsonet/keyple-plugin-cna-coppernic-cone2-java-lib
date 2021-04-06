@@ -11,7 +11,9 @@
  ********************************************************************************/
 package org.eclipse.keyple.coppernic.ask.plugin
 
-interface Cone2ContactlessReader {
+import org.eclipse.keyple.core.common.KeypleReaderExtension
+
+interface Cone2ContactlessReader: KeypleReaderExtension {
 
     /**
      * Sets the timeout used in the waitForCardAbsent method
