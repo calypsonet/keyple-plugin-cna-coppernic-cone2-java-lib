@@ -27,34 +27,41 @@ import kotlinx.android.synthetic.main.activity_main.toolbar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.eclipse.keyple.calypso.command.sam.SamRevision
-import org.eclipse.keyple.calypso.transaction.CalypsoSam
-import org.eclipse.keyple.calypso.transaction.PoSecuritySettings
-import org.eclipse.keyple.calypso.transaction.PoTransaction
-import org.eclipse.keyple.calypso.transaction.SamSelection
-import org.eclipse.keyple.calypso.transaction.SamSelector
+import org.calypsonet.terminal.calypso.WriteAccessLevel
+import org.calypsonet.terminal.calypso.sam.CalypsoSam
+import org.calypsonet.terminal.calypso.transaction.CardSecuritySetting
+import org.calypsonet.terminal.reader.CardReaderEvent
+import org.calypsonet.terminal.reader.spi.CardReaderObservationExceptionHandlerSpi
+import org.calypsonet.terminal.reader.spi.CardReaderObserverSpi
+import org.eclipse.keyple.card.calypso.CalypsoExtensionService
 import org.eclipse.keyple.coppernic.ask.example.R
 import org.eclipse.keyple.coppernic.ask.example.adapter.EventAdapter
 import org.eclipse.keyple.coppernic.ask.example.model.ChoiceEventModel
 import org.eclipse.keyple.coppernic.ask.example.model.EventModel
+import org.eclipse.keyple.coppernic.ask.example.util.CalypsoClassicInfo.SAM_PROFILE_NAME
+import org.eclipse.keyple.coppernic.ask.plugin.Cone2ContactReader
 import org.eclipse.keyple.coppernic.ask.plugin.ParagonSupportedContactProtocols
-import org.eclipse.keyple.core.card.selection.CardResource
-import org.eclipse.keyple.core.card.selection.CardSelectionsService
-import org.eclipse.keyple.core.card.selection.MultiSelectionProcessing
+import org.eclipse.keyple.core.service.Plugin
 import org.eclipse.keyple.core.service.Reader
-import org.eclipse.keyple.core.service.event.ObservableReader
-import org.eclipse.keyple.core.service.event.ReaderEvent
-import org.eclipse.keyple.core.service.exception.KeypleReaderException
+import org.eclipse.keyple.core.service.resource.CardResourceProfileConfigurator
+import org.eclipse.keyple.core.service.resource.CardResourceService
+import org.eclipse.keyple.core.service.resource.CardResourceServiceProvider
+import org.eclipse.keyple.core.service.resource.PluginsConfigurator
+import org.eclipse.keyple.core.service.resource.spi.ReaderConfiguratorSpi
+import org.eclipse.keyple.core.service.spi.PluginObservationExceptionHandlerSpi
 import timber.log.Timber
 
 abstract class AbstractExampleActivity : AppCompatActivity(),
-    NavigationView.OnNavigationItemSelectedListener, ObservableReader.ReaderObserver {
+    NavigationView.OnNavigationItemSelectedListener, CardReaderObserverSpi,
+    CardReaderObservationExceptionHandlerSpi {
+
+    protected lateinit var calypsoCardExtensionProvider: CalypsoExtensionService
 
     /**
      * Use to modify event update behaviour reguarding current use case execution
      */
     interface UseCase {
-        fun onEventUpdate(event: ReaderEvent?)
+        fun onEventUpdate(event: CardReaderEvent?)
     }
 
     /**
@@ -160,42 +167,105 @@ abstract class AbstractExampleActivity : AppCompatActivity(),
     abstract fun initContentView()
     abstract fun initReaders()
 
+
     /**
-     * check the availability of the SAM doing a ATR based selection, open its physical and
-     * logical channels and keep it open
+     * Setup the [CardResourceService] to provide a Calypso SAM C1 resource when requested.
+     *
+     * @param plugin The plugin to which the SAM reader belongs.
+     * @param readerNameRegex A regular expression matching the expected SAM reader name.
+     * @param samProfileName A string defining the SAM profile.
+     * @throws IllegalStateException If the expected card resource is not found.
      */
-    @Throws(KeypleReaderException::class, IllegalStateException::class)
-    protected fun checkSamAndOpenChannel(samReader: Reader): CardResource<CalypsoSam> {
-        // Create a SAM resource after selecting the SAM
-        val samSelection = CardSelectionsService(MultiSelectionProcessing.FIRST_MATCH)
 
-        // Prepare selector
-        val samProtocol = ParagonSupportedContactProtocols.INNOVATRON_HIGH_SPEED_PROTOCOL.name
-        val samSelector =
-            SamSelector.builder()
-                .cardProtocol(samProtocol)
-                .samRevision(SamRevision.C1)
-                .build()
+    open fun setupCardResourceService(
+        plugin: Plugin,
+        readerNameRegex: String?,
+        samProfileName: String?
+    ){
+        // Create a card resource extension expecting a SAM "C1".
+        val samSelection = CalypsoExtensionService.getInstance()
+            .createSamSelection()
+            .filterByProductType(CalypsoSam.ProductType.SAM_C1)
 
-        samSelection.prepareSelection(SamSelection(samSelector))
+        val samCardResourceExtension =
+            CalypsoExtensionService.getInstance().createSamResourceProfileExtension(samSelection)
 
-        return try {
-            // Check if a SAM reader is present in the device
-            if (samReader.isCardPresent) {
-                val calypsoSam =
-                    samSelection.processExplicitSelections(samReader).activeSmartCard as CalypsoSam
-                CardResource<CalypsoSam>(samReader, calypsoSam)
-            } else {
-                addResultEvent("Error: Sam is not present in the reader")
-                throw IllegalStateException("Sam is not present in the reader")
+        // Get the service
+        val cardResourceService = CardResourceServiceProvider.getService()
+
+        val pluginAndReaderExceptionHandler = PluginAndReaderExceptionHandler()
+
+        // Configure the card resource service:
+        // - allocation mode is blocking with a 100 milliseconds cycle and a 10 seconds timeout.
+        // - the readers are searched in the PC/SC plugin, the observation of the plugin (for the
+        // connection/disconnection of readers) and of the readers (for the insertion/removal of cards)
+        // is activated.
+        // - two card resource profiles A and B are defined, each expecting a specific card
+        // characterized by its power-on data and placed in a specific reader.
+        // - the timeout for using the card's resources is set at 5 seconds.
+        cardResourceService
+            .configurator
+            .withBlockingAllocationMode(100, 10000)
+            .withPlugins(
+                PluginsConfigurator.builder()
+                    .addPluginWithMonitoring(
+                        plugin,
+                        ReaderConfigurator(),
+                        pluginAndReaderExceptionHandler,
+                        pluginAndReaderExceptionHandler
+                    )
+                    .withUsageTimeout(5000)
+                    .build()
+            )
+            .withCardResourceProfiles(
+                CardResourceProfileConfigurator.builder(samProfileName, samCardResourceExtension)
+                    .withReaderNameRegex(readerNameRegex)
+                    .build()
+            )
+            .configure()
+
+        cardResourceService.start()
+
+        // verify the resource availability
+        val cardResource = cardResourceService.getCardResource(samProfileName)
+            ?: throw IllegalStateException(
+                java.lang.String.format(
+                    "Unable to retrieve a SAM card resource for profile '%s' from reader '%s' in plugin '%s'",
+                    samProfileName, readerNameRegex, plugin.name
+                )
+            )
+
+        // release the resource
+        cardResourceService.releaseCardResource(cardResource)
+    }
+
+    /**
+     * Reader configurator used by the card resource service to setup the SAM reader with the required
+     * settings.
+     */
+    internal class ReaderConfigurator : ReaderConfiguratorSpi {
+        /** {@inheritDoc}  */
+        override fun setupReader(reader: Reader) {
+            // Configure the reader with parameters suitable for contactless operations.
+            try {
+                reader
+                    .getExtension(Cone2ContactReader::class.java)
+//                    .setContactless(false)
+//                    .setIsoProtocol(PcscReader.IsoProtocol.T0)
+//                    .setSharingMode(PcscReader.SharingMode.SHARED)
+            } catch (e: Exception) {
+                Timber.e(
+                    "Exception raised while setting up the reader ${reader.getName()} : ${e.message}"
+                )
             }
-        } catch (e: KeypleReaderException) {
-            addResultEvent("Error: Reader exception ${e.message}")
-            throw IllegalStateException("Reader exception: " + e.message)
         }
     }
 
-    protected fun getSecuritySettings(samResource: CardResource<CalypsoSam>?): PoSecuritySettings? {
+    override fun onReaderObservationError(pluginName: String?, readerName: String?, e: Throwable?) {
+        Timber.e(e, "--Reader Observation Exception %s: %s", pluginName, readerName)
+    }
+
+    protected fun getSecuritySettings(): CardSecuritySetting? {
 
         // The default KIF values for personalization, loading and debiting
         val DEFAULT_KIF_PERSO = 0x21.toByte()
@@ -207,32 +277,50 @@ abstract class AbstractExampleActivity : AppCompatActivity(),
         val DEFAULT_KEY_RECORD_NUMBER_LOAD = 0x02.toByte()
         val DEFAULT_KEY_RECORD_NUMBER_DEBIT = 0x03.toByte()
 
-        /* define the security parameters to provide when creating PoTransaction */
-        return PoSecuritySettings.PoSecuritySettingsBuilder(samResource) //
-            .sessionDefaultKif(
-                PoTransaction.SessionSetting.AccessLevel.SESSION_LVL_PERSO,
+        val samCardResourceExtension =
+            CalypsoExtensionService.getInstance()
+
+        val sec = samCardResourceExtension.createCardSecuritySetting()
+
+        // Create security settings that reference the same SAM profile requested from the card resource
+        // service and enable the multiple session mode.
+        // Create security settings that reference the same SAM profile requested from the card resource
+        // service and enable the multiple session mode.
+        val samResource = CardResourceServiceProvider.getService()
+            .getCardResource(SAM_PROFILE_NAME)
+
+        val cardSecuritySetting = CalypsoExtensionService.getInstance()
+            .createCardSecuritySetting()
+            .setSamResource(samResource.reader, samResource.smartCard as CalypsoSam)
+            .assignDefaultKif(
+                WriteAccessLevel.PERSONALIZATION,
                 DEFAULT_KIF_PERSO
-            ) //
-            .sessionDefaultKif(
-                PoTransaction.SessionSetting.AccessLevel.SESSION_LVL_LOAD,
+            )
+            .assignDefaultKif(
+                WriteAccessLevel.LOAD,
                 DEFAULT_KIF_LOAD
             ) //
-            .sessionDefaultKif(
-                PoTransaction.SessionSetting.AccessLevel.SESSION_LVL_DEBIT,
+            .assignDefaultKif(
+                WriteAccessLevel.DEBIT,
                 DEFAULT_KIF_DEBIT
             ) //
-            .sessionDefaultKeyRecordNumber(
-                PoTransaction.SessionSetting.AccessLevel.SESSION_LVL_PERSO,
-                DEFAULT_KEY_RECORD_NUMBER_PERSO
-            ) //
-            .sessionDefaultKeyRecordNumber(
-                PoTransaction.SessionSetting.AccessLevel.SESSION_LVL_LOAD,
-                DEFAULT_KEY_RECORD_NUMBER_LOAD
-            ) //
-            .sessionDefaultKeyRecordNumber(
-                PoTransaction.SessionSetting.AccessLevel.SESSION_LVL_DEBIT,
-                DEFAULT_KEY_RECORD_NUMBER_DEBIT
-            )
-            .build()
+            .enableMultipleSession()
+
+        return cardSecuritySetting
+    }
+    /** Class implementing the exception handler SPIs for plugin and reader monitoring.  */
+    private class PluginAndReaderExceptionHandler :
+        PluginObservationExceptionHandlerSpi, CardReaderObservationExceptionHandlerSpi {
+        override fun onPluginObservationError(pluginName: String, e: Throwable) {
+            Timber.e("An exception occurred while monitoring the plugin '${e.message}'.")
+        }
+
+        override fun onReaderObservationError(
+            pluginName: String,
+            readerName: String,
+            e: Throwable
+        ) {
+            Timber.e("An exception occurred while monitoring the plugin '${e.message}'.")
+        }
     }
 }

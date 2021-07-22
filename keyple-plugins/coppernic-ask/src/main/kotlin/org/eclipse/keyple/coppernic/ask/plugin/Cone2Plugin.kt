@@ -11,7 +11,9 @@
  ********************************************************************************/
 package org.eclipse.keyple.coppernic.ask.plugin
 
-interface Cone2Plugin {
+import org.eclipse.keyple.core.common.KeyplePluginExtension
+
+interface Cone2Plugin: KeyplePluginExtension {
     companion object {
         const val PLUGIN_NAME = "Cone2Plugin"
     }

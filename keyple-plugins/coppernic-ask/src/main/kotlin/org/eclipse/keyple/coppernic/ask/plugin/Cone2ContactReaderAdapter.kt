@@ -16,8 +16,8 @@ import fr.coppernic.sdk.ask.Defines.SAM_PROT_HSP_INNOVATRON
 import fr.coppernic.sdk.ask.Defines.SAM_PROT_ISO_7816_T0
 import fr.coppernic.sdk.ask.Defines.SAM_PROT_ISO_7816_T1
 import fr.coppernic.sdk.utils.core.CpcBytes
-import org.eclipse.keyple.core.plugin.AbstractLocalReader
-import org.eclipse.keyple.core.service.exception.KeypleReaderIOException
+import org.eclipse.keyple.core.plugin.ReaderIOException
+import org.eclipse.keyple.core.plugin.spi.reader.ReaderSpi
 import org.eclipse.keyple.core.util.ByteArrayUtil
 import timber.log.Timber
 
@@ -25,11 +25,9 @@ import timber.log.Timber
  * Keyple SE Reader's Implementation for the Coppernic ASK Contact (SAM access) reader
  */
 @Suppress("INVISIBLE_ABSTRACT_MEMBER_FROM_SUPER_WARNING")
-internal class Cone2ContactReaderImpl(val contactInterface: ContactInterface) :
-    AbstractLocalReader(
-        Cone2Plugin.PLUGIN_NAME,
-        "${Cone2ContactReader.READER_NAME}_${contactInterface.slotId}"
-    ), Cone2ContactReader {
+internal class Cone2ContactReaderAdapter(val contactInterface: ContactInterface) :
+    ReaderSpi,
+    Cone2ContactReader {
 
     /**
      * Represent the physical SAM slots available inside the Cone-2 device
@@ -52,14 +50,14 @@ internal class Cone2ContactReaderImpl(val contactInterface: ContactInterface) :
     var atr: ByteArray? = null
 
     /**
-     * @see AbstractLocalReader.getATR
+     * @see ReaderSpi.getPowerOnData
      */
-    override fun getATR(): ByteArray? {
-        return atr
+    override fun getPowerOnData(): String {
+        return ByteArrayUtil.toHex(atr)
     }
 
     /**
-     * @see AbstractLocalReader.openPhysicalChannel
+     * @see ReaderSpi.openPhysicalChannel
      */
     override fun openPhysicalChannel() {
         try {
@@ -73,7 +71,7 @@ internal class Cone2ContactReaderImpl(val contactInterface: ContactInterface) :
             val result =
                 reader.cscSelectSam(contactInterface.slotId, currentSamProtocol!!)
             if (result != RCSC_Ok) {
-                throw KeypleReaderIOException("Could select SAM slot")
+                throw ReaderIOException("Could select SAM slot")
             }
             val atr = ByteArray(256)
             val atrLength = IntArray(1)
@@ -94,17 +92,18 @@ internal class Cone2ContactReaderImpl(val contactInterface: ContactInterface) :
     }
 
     /**
-     * @see AbstractLocalReader.isContactless
+     * @see ReaderSpi.isContactless
      */
     override fun isContactless(): Boolean {
         return false
     }
 
+
     /**
-     * @see AbstractLocalReader.activateReaderProtocol
+     * @see ReaderSpi.activateProtocol
      */
-    override fun activateReaderProtocol(readerProtocolName: String) {
-        when (readerProtocolName) {
+    override fun activateProtocol(readerProtocol: String?) {
+        when (readerProtocol) {
             ParagonSupportedContactProtocols.INNOVATRON_HIGH_SPEED_PROTOCOL.name -> {
                 currentSamProtocol = SAM_PROT_HSP_INNOVATRON
             }
@@ -116,29 +115,38 @@ internal class Cone2ContactReaderImpl(val contactInterface: ContactInterface) :
             }
         }
 
-        currentSamProtocolName = readerProtocolName
-        Timber.d("$name: Activate protocol $readerProtocolName (= $currentSamProtocol).")
+        currentSamProtocolName = readerProtocol
+        Timber.d("$name: Activate protocol $readerProtocol (= $currentSamProtocol).")
     }
 
     /**
-     * @see AbstractLocalReader.deactivateReaderProtocol
+     * @see ReaderSpi.deactivateProtocol
      */
-    override fun deactivateReaderProtocol(readerProtocolName: String) {
+    override fun deactivateProtocol(readerProtocol: String?) {
         if (currentSamProtocolName.isNullOrEmpty()) {
             throw IllegalStateException("No protocol currently activated")
         }
 
-        if (!readerProtocolName.equals(currentSamProtocolName)) {
-            throw IllegalStateException("$readerProtocolName is not currently activated. Current SAM protocol is : $currentSamProtocolName")
+        if (!readerProtocol.equals(currentSamProtocolName)) {
+            throw IllegalStateException("$readerProtocol is not currently activated. Current SAM protocol is : $currentSamProtocolName")
         } else {
             currentSamProtocol = null
             currentSamProtocolName = null
-            Timber.d("$name: Deactivate protocol $readerProtocolName.")
+            Timber.d("$name: Deactivate protocol $readerProtocol.")
+        }
+    }
+
+    override fun isProtocolSupported(readerProtocol: String?): Boolean {
+        return try {
+            ParagonSupportedContactProtocols.findEnumByKey(readerProtocol!!)
+            true
+        } catch (e: Exception) {
+            false
         }
     }
 
     /**
-     * @see AbstractLocalReader.isCurrentProtocol
+     * @see ReaderSpi.isCurrentProtocol
      */
     override fun isCurrentProtocol(readerProtocolName: String?): Boolean {
         /*
@@ -152,14 +160,14 @@ internal class Cone2ContactReaderImpl(val contactInterface: ContactInterface) :
     }
 
     /**
-     * @see AbstractLocalReader.isPhysicalChannelOpen
+     * @see ReaderSpi.isPhysicalChannelOpen
      */
     override fun isPhysicalChannelOpen(): Boolean {
         return atr != null
     }
 
     /**
-     * @see AbstractLocalReader.checkCardPresence
+     * @see ReaderSpi.checkCardPresence
      */
     override fun checkCardPresence(): Boolean {
         return try {
@@ -176,14 +184,14 @@ internal class Cone2ContactReaderImpl(val contactInterface: ContactInterface) :
     }
 
     /**
-     * @see AbstractLocalReader.closePhysicalChannel
+     * @see ReaderSpi.closePhysicalChannel
      */
     override fun closePhysicalChannel() {
         atr = null
     }
 
     /**
-     * @see AbstractLocalReader.transmitApdu
+     * @see ReaderSpi.transmitApdu
      */
     override fun transmitApdu(apduIn: ByteArray): ByteArray {
         Timber.d("Data Length to be sent to tag : ${apduIn.size}")
@@ -197,7 +205,7 @@ internal class Cone2ContactReaderImpl(val contactInterface: ContactInterface) :
 
             if (result != RCSC_Ok) {
                 Timber.d("KEYPLE-APDU-SAM - throw KeypleReaderIOException")
-                throw KeypleReaderIOException("cscIsoCommandSam failde with code: $result")
+                throw ReaderIOException("cscIsoCommandSam failde with code: $result")
             } else {
                 if (apduOutLen[0] >= 2) {
                     val apduAnswer = ByteArray(apduOutLen[0])
@@ -205,11 +213,26 @@ internal class Cone2ContactReaderImpl(val contactInterface: ContactInterface) :
                     Timber.d("Data Out : ${ByteArrayUtil.toHex(apduAnswer)}")
                     return apduAnswer
                 } else {
-                    throw KeypleReaderIOException("Empty Answer")
+                    throw ReaderIOException("Empty Answer")
                 }
             }
         } finally {
             ParagonReader.releaseLock()
         }
+    }
+
+    /**
+     * @see ReaderSpi.getName
+     */
+    override fun getName(): String {
+        return if (contactInterface == ContactInterface.ONE) {
+            Cone2ContactReader.SAM_READER_1_NAME
+        } else {
+            Cone2ContactReader.SAM_READER_2_NAME
+        }
+    }
+
+    override fun onUnregister() {
+        //Do nothing
     }
 }
