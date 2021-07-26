@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="org.eclipse.keyple.coppernic.ask.example">
+    package="org.calypsonet.keyple.plugin.coppernic.example">
 
     <application
         android:name=".DemoApplication"
