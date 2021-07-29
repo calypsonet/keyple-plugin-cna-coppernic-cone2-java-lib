@@ -52,9 +52,9 @@ dependencies {
     implementation "org.eclipse.keyple:keyple-card-calypso-java-lib:2.0.0-SNAPSHOT"
     implementation "org.eclipse.keyple:keyple-service-resource-java-lib:2.0.0-SNAPSHOT"
 
-    implementation "org.calypsonet.terminal:calypsonet-terminal-reader-java-api:1.0-SNAPSHOT"
-    implementation "org.calypsonet.terminal:calypsonet-terminal-calypso-java-api:1.0-SNAPSHOT"
-    implementation "org.calypsonet.terminal:calypsonet-terminal-card-java-api:1.0-SNAPSHOT"
+    implementation "org.calypsonet.terminal:calypsonet-terminal-reader-java-api:1.0.0-SNAPSHOT"
+    implementation "org.calypsonet.terminal:calypsonet-terminal-calypso-java-api:1.0.0-SNAPSHOT"
+    implementation "org.calypsonet.terminal:calypsonet-terminal-card-java-api:1.0.0-SNAPSHOT"
     
     implementation project(path: ':coppernic-plugin')
 
