@@ -38,6 +38,7 @@ import org.calypsonet.terminal.reader.selection.CardSelectionManager
 import org.calypsonet.terminal.reader.selection.CardSelectionResult
 import org.calypsonet.terminal.reader.selection.ScheduledCardSelectionsResponse
 import org.eclipse.keyple.card.calypso.CalypsoExtensionService
+import org.eclipse.keyple.core.service.ConfigurableReader
 import org.eclipse.keyple.core.service.KeyplePluginException
 import org.eclipse.keyple.core.service.ObservableReader
 import org.eclipse.keyple.core.service.Reader
@@ -121,7 +122,7 @@ class MainActivity : AbstractExampleActivity() {
 
             // Activate protocols for the PO reader
             cardProtocol = ParagonSupportedContactlessProtocols.ISO_14443
-            (poReader as Reader).activateProtocol(
+            (poReader as ConfigurableReader).activateProtocol(
                 cardProtocol.name,
                 cardProtocol.name
             )
@@ -130,7 +131,7 @@ class MainActivity : AbstractExampleActivity() {
             samReader = paragonPlugin.getReader(Cone2ContactReader.SAM_READER_1_NAME)
 
             // Activate protocols for the SAM reader
-            samReader.activateProtocol(
+            (samReader as ConfigurableReader).activateProtocol(
                 ParagonSupportedContactProtocols.INNOVATRON_HIGH_SPEED_PROTOCOL.name,
                 ParagonSupportedContactProtocols.INNOVATRON_HIGH_SPEED_PROTOCOL.name
             )

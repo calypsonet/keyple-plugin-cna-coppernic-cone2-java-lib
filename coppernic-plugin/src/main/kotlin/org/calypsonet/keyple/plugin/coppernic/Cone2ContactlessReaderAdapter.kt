@@ -17,6 +17,7 @@ import fr.coppernic.sdk.ask.sCARD_SearchExt
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.experimental.or
 import org.eclipse.keyple.core.plugin.CardIOException
+import org.eclipse.keyple.core.plugin.spi.reader.ConfigurableReaderSpi
 import org.eclipse.keyple.core.plugin.spi.reader.ReaderSpi
 import org.eclipse.keyple.core.plugin.spi.reader.observable.ObservableReaderSpi
 import org.eclipse.keyple.core.plugin.spi.reader.observable.state.insertion.WaitForCardInsertionBlockingSpi
@@ -31,6 +32,7 @@ import timber.log.Timber
  */
 internal class Cone2ContactlessReaderAdapter :
     ObservableReaderSpi,
+    ConfigurableReaderSpi,
     Cone2ContactlessReader,
     WaitForCardInsertionBlockingSpi,
     DontWaitForCardRemovalDuringProcessingSpi,

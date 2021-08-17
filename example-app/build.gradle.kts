@@ -18,7 +18,7 @@ android {
     buildToolsVersion("30.0.2")
 
     defaultConfig {
-        applicationId("org.calypsonet.keyple.plugin.bluebird.example")
+        applicationId("org.calypsonet.keyple.plugin.coppernic.example")
         minSdkVersion(19)
         targetSdkVersion(29)
         versionName(project.version.toString())

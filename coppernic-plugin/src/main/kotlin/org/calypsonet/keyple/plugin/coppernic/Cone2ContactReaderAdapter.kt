@@ -17,6 +17,7 @@ import fr.coppernic.sdk.ask.Defines.SAM_PROT_ISO_7816_T0
 import fr.coppernic.sdk.ask.Defines.SAM_PROT_ISO_7816_T1
 import fr.coppernic.sdk.utils.core.CpcBytes
 import org.eclipse.keyple.core.plugin.ReaderIOException
+import org.eclipse.keyple.core.plugin.spi.reader.ConfigurableReaderSpi
 import org.eclipse.keyple.core.plugin.spi.reader.ReaderSpi
 import org.eclipse.keyple.core.util.ByteArrayUtil
 import timber.log.Timber
@@ -27,6 +28,7 @@ import timber.log.Timber
 @Suppress("INVISIBLE_ABSTRACT_MEMBER_FROM_SUPER_WARNING")
 internal class Cone2ContactReaderAdapter(val contactInterface: ContactInterface) :
     ReaderSpi,
+    ConfigurableReaderSpi,
     Cone2ContactReader {
 
     /**
