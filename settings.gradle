@@ -1,3 +1,0 @@
-rootProject.name='KeypleAndroidPluginCoppernic'
-include ':example-app'
-include ':coppernic-plugin'
