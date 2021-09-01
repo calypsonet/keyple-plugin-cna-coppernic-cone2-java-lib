@@ -8,7 +8,6 @@ plugins {
     id("org.jetbrains.dokka")
     jacoco
     id("com.diffplug.spotless")
-    `maven-publish`
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -89,9 +88,9 @@ dependencies {
     implementation("fr.coppernic.sdk.cpcutils:CpcUtilsLib:6.19.0")
 
     //keyple
-    implementation("org.eclipse.keyple:keyple-common-java-api:2.0.0-rc4") { isChanging = true }
-    implementation("org.eclipse.keyple:keyple-plugin-java-api:2.0.0-rc4") { isChanging = true }
-    implementation("org.eclipse.keyple:keyple-util-java-lib:2.0.0-rc4") { isChanging = true }
+    implementation("org.eclipse.keyple:keyple-common-java-api:2.0.0-rc4")
+    implementation("org.eclipse.keyple:keyple-plugin-java-api:2.0.0-rc4")
+    implementation("org.eclipse.keyple:keyple-util-java-lib:2.0.0-rc4")
 
     //android
     implementation("androidx.legacy:legacy-support-v4:1.0.0")
@@ -135,37 +134,5 @@ tasks {
         }
     }
 }
-
-val dokkaJar by tasks.creating(Jar::class) {
-    group = JavaBasePlugin.DOCUMENTATION_GROUP
-    description = "Assembles Kotlin docs with Dokka"
-    archiveClassifier.set("javadoc")
-    from(tasks.dokkaHtml)
-    dependsOn(tasks.dokkaHtml)
-}
-
-val sourcesJar by tasks.creating(Jar::class) {
-    group = JavaBasePlugin.DOCUMENTATION_GROUP
-    description = "Assembles sources JAR"
-    archiveClassifier.set("sources")
-    from(android.sourceSets.getByName("main").java.srcDirs)
-}
-
-artifacts {
-    archives(sourcesJar)
-    archives(dokkaJar)
-}
-
-afterEvaluate {
-    publishing {
-        publications {
-            create<MavenPublication>("debug") {
-                from(components["debug"])
-                artifactId = archivesBaseName
-                artifact(sourcesJar)
-                artifact(dokkaJar)
-            }
-        }
-    }
-}
+apply(plugin = "org.eclipse.keyple") // To do last
 
