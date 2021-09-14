@@ -2,7 +2,7 @@
 
 ## Overview
 
-The **Keyple Plugin CNA Coppernic Cone2 Java Library** is an addon to allow an application using Keyple to interact with Coppernic Cone2 terminals.
+The **Keyple Plugin CNA Coppernic Cone2 Java Library** is an add-on to allow an application using Keyple to interact with Coppernic Cone2 terminals.
 
 ## Javadoc
 
