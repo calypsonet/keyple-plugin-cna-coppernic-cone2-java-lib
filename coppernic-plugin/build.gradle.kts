@@ -88,9 +88,9 @@ dependencies {
     implementation("fr.coppernic.sdk.cpcutils:CpcUtilsLib:6.19.0")
 
     //keyple
-    implementation("org.eclipse.keyple:keyple-common-java-api:2.0.0-SNAPSHOT") { isChanging = true }
-    implementation("org.eclipse.keyple:keyple-plugin-java-api:2.0.0-SNAPSHOT") { isChanging = true }
-    implementation("org.eclipse.keyple:keyple-util-java-lib:2.0.0-SNAPSHOT") { isChanging = true }
+    implementation("org.eclipse.keyple:keyple-common-java-api:2.0.0")
+    implementation("org.eclipse.keyple:keyple-plugin-java-api:2.0.0")
+    implementation("org.eclipse.keyple:keyple-util-java-lib:2.0.0")
 
     //android
     implementation("androidx.legacy:legacy-support-v4:1.0.0")
