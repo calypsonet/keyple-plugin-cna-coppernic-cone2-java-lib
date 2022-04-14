@@ -43,7 +43,7 @@ import org.eclipse.keyple.core.service.KeyplePluginException
 import org.eclipse.keyple.core.service.ObservableReader
 import org.eclipse.keyple.core.service.Reader
 import org.eclipse.keyple.core.service.SmartCardServiceProvider
-import org.eclipse.keyple.core.util.ByteArrayUtil
+import org.eclipse.keyple.core.util.HexUtil
 import timber.log.Timber
 
 /**
@@ -326,7 +326,8 @@ class MainActivity : AbstractExampleActivity() {
                 addActionEvent("Read environment and holder data")
 
                 addResultEvent(
-                    "Environment and Holder file: ${ByteArrayUtil.toHex(
+                    "Environment and Holder file: ${
+                        HexUtil.toHex(
                         efEnvironmentHolder.data.content
                     )}"
                 )
@@ -365,7 +366,7 @@ class MainActivity : AbstractExampleActivity() {
                  * Prepare the reading order and keep the associated parser for later use once the
                  * transaction has been processed.
                  */
-                poTransaction. prepareReadRecords(
+                poTransaction.prepareReadRecords(
                     CalypsoClassicInfo.SFI_EventLog,
                     CalypsoClassicInfo.RECORD_NUMBER_1.toInt(),
                     CalypsoClassicInfo.RECORD_NUMBER_1.toInt(),
@@ -390,7 +391,7 @@ class MainActivity : AbstractExampleActivity() {
                     poTransaction.processOpening(WriteAccessLevel.LOAD)
                     addResultEvent("Opening session: SUCCESS")
                     val counter = readCounter(selectionsResult)
-                    val eventLog = ByteArrayUtil.toHex(readEventLog(selectionsResult))
+                    val eventLog = HexUtil.toHex(readEventLog(selectionsResult))
 
                     addActionEvent("Process PO Closing session")
                     poTransaction.processClosing()
@@ -404,7 +405,7 @@ class MainActivity : AbstractExampleActivity() {
                     // poTransaction.processClosing() //?
                     addResultEvent("Counter value: ${readCounter(selectionsResult)}")
                     addResultEvent(
-                        "EventLog file: ${ByteArrayUtil.toHex(
+                        "EventLog file: ${HexUtil.toHex(
                             readEventLog(
                                 selectionsResult
                             )
@@ -458,7 +459,7 @@ class MainActivity : AbstractExampleActivity() {
             if (selectionsResult.activeSelectionIndex != -1) {
                 addResultEvent("Calypso PO selection: SUCCESS")
                 val calypsoPo = selectionsResult.activeSmartCard as CalypsoCard
-                addResultEvent("AID: ${ByteArrayUtil.fromHex(CalypsoClassicInfo.AID)}")
+                addResultEvent("AID: ${HexUtil.toByteArray(CalypsoClassicInfo.AID)}")
 
                 val plugin = SmartCardServiceProvider.getService().getPlugin(Cone2Plugin.PLUGIN_NAME)
                 setupCardResourceService(

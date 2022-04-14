@@ -23,7 +23,7 @@ import org.eclipse.keyple.core.plugin.spi.reader.observable.ObservableReaderSpi
 import org.eclipse.keyple.core.plugin.spi.reader.observable.state.insertion.WaitForCardInsertionBlockingSpi
 import org.eclipse.keyple.core.plugin.spi.reader.observable.state.processing.DontWaitForCardRemovalDuringProcessingSpi
 import org.eclipse.keyple.core.plugin.spi.reader.observable.state.removal.WaitForCardRemovalNonBlockingSpi
-import org.eclipse.keyple.core.util.ByteArrayUtil
+import org.eclipse.keyple.core.util.HexUtil
 import timber.log.Timber
 
 /**
@@ -106,7 +106,7 @@ internal class Cone2ContactlessReaderAdapter :
      * @see ReaderSpi.getPowerOnData
      */
     override fun getPowerOnData(): String {
-        return ByteArrayUtil.toHex(rfidTag?.atr)
+        return HexUtil.toHex(rfidTag?.atr)
     }
 
     /**
@@ -260,9 +260,9 @@ internal class Cone2ContactlessReaderAdapter :
             val dataReceivedLength = IntArray(1)
 
             Timber.d("KEYPLE-APDU - Data Length to be sent to tag : ${apduIn.size}")
-            Timber.d("KEYPLE-APDU - Data In : ${ByteArrayUtil.toHex(apduIn)}")
+            Timber.d("KEYPLE-APDU - Data In : ${HexUtil.toHex(apduIn)}")
             reader.cscISOCommand(apduIn, apduIn.size, dataReceived, dataReceivedLength)
-            Timber.d("KEYPLE-APDU - Data Out : ${ByteArrayUtil.toHex(dataReceived)}")
+            Timber.d("KEYPLE-APDU - Data Out : ${HexUtil.toHex(dataReceived)}")
 
             val length = dataReceivedLength[0]
 

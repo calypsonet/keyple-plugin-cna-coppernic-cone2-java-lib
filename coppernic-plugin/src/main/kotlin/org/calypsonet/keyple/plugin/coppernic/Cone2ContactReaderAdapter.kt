@@ -19,7 +19,7 @@ import fr.coppernic.sdk.utils.core.CpcBytes
 import org.eclipse.keyple.core.plugin.ReaderIOException
 import org.eclipse.keyple.core.plugin.spi.reader.ConfigurableReaderSpi
 import org.eclipse.keyple.core.plugin.spi.reader.ReaderSpi
-import org.eclipse.keyple.core.util.ByteArrayUtil
+import org.eclipse.keyple.core.util.HexUtil
 import timber.log.Timber
 
 /**
@@ -55,7 +55,7 @@ internal class Cone2ContactReaderAdapter(val contactInterface: ContactInterface)
      * @see ReaderSpi.getPowerOnData
      */
     override fun getPowerOnData(): String {
-        return ByteArrayUtil.toHex(atr)
+        return HexUtil.toHex(atr)
     }
 
     /**
@@ -198,13 +198,13 @@ internal class Cone2ContactReaderAdapter(val contactInterface: ContactInterface)
      */
     override fun transmitApdu(apduIn: ByteArray): ByteArray {
         Timber.d("Data Length to be sent to tag : ${apduIn.size}")
-        Timber.d("Data In : ${ByteArrayUtil.toHex(apduIn)}")
+        Timber.d("Data In : ${HexUtil.toHex(apduIn)}")
         try {
             ParagonReader.acquireLock()
             Timber.d("KEYPLE-APDU-SAM - Data Length to be sent to tag : ${apduIn.size}")
-            Timber.d("KEYPLE-APDU-SAM - Data In : ${ByteArrayUtil.toHex(apduIn)}")
+            Timber.d("KEYPLE-APDU-SAM - Data In : ${HexUtil.toHex(apduIn)}")
             val result = reader.cscIsoCommandSam(apduIn, apduIn.size, apduOut, apduOutLen)
-            Timber.d("KEYPLE-APDU-SAM - Data Out : ${ByteArrayUtil.toHex(apduOut)}")
+            Timber.d("KEYPLE-APDU-SAM - Data Out : ${HexUtil.toHex(apduOut)}")
 
             if (result != RCSC_Ok) {
                 Timber.d("KEYPLE-APDU-SAM - throw KeypleReaderIOException")
@@ -213,7 +213,7 @@ internal class Cone2ContactReaderAdapter(val contactInterface: ContactInterface)
                 if (apduOutLen[0] >= 2) {
                     val apduAnswer = ByteArray(apduOutLen[0])
                     System.arraycopy(apduOut, 0, apduAnswer, 0, apduAnswer.size)
-                    Timber.d("Data Out : ${ByteArrayUtil.toHex(apduAnswer)}")
+                    Timber.d("Data Out : ${HexUtil.toHex(apduAnswer)}")
                     return apduAnswer
                 } else {
                     throw ReaderIOException("Empty Answer")
