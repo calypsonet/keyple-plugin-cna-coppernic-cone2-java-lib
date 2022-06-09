@@ -138,7 +138,6 @@ internal class Cone2ContactlessReaderAdapter :
      */
     override fun waitForCardInsertion() {
         Timber.d("waitForCardInsertion")
-        var ret = false
         isWaitingForCard.set(true)
         // AskReader.acquireLock()
         // Entering a loop with successive hunts for card
@@ -149,7 +148,6 @@ internal class Cone2ContactlessReaderAdapter :
                 isCardDiscovered.set(true)
                 isWaitingForCard.set(false)
                 // This allows synchronisation with PLugin when powering off the reader
-                ret = true
             }
         }
         // This allows synchronisation with Plugin when powering off the reader
