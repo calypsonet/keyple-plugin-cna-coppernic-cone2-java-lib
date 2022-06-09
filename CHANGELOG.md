@@ -27,7 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2020-12-18
 This is the initial release.
 
-[unreleased]: https://github.com/calypsonet/keyple-plugin-cna-coppernic-cone2-java-lib/compare/2.0.0...HEAD
+[unreleased]: https://github.com/calypsonet/keyple-plugin-cna-coppernic-cone2-java-lib/compare/2.0.1...HEAD
+[2.0.1]: https://github.com/calypsonet/keyple-plugin-cna-coppernic-cone2-java-lib/compare/2.0.0...2.0.1
 [2.0.0]: https://github.com/calypsonet/keyple-plugin-cna-coppernic-cone2-java-lib/compare/1.0.0...2.0.0
 [1.0.0]: https://github.com/calypsonet/keyple-plugin-cna-coppernic-cone2-java-lib/releases/tag/1.0.0
 
