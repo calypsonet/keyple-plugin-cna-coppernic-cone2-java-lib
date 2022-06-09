@@ -12,8 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI: Forbid the publication of a version already released (issue [#18]).
 ### Fixed
 - Removal of the unused Jacoco plugin for compiling Android applications that had an unwanted side effect when the application was launched (stacktrace with warnings).
-### Removed
-- Unused dependency to "Keyple Util Library".
+### Upgraded
+- "Keyple Util Library" to version `2.1.0` by removing the use of deprecated methods.
 ### Upgraded examples
 - "Calypsonet Terminal Calypso API" to version `1.2.+`
 - "Keyple Service Resource Library" to version `2.0.1`
