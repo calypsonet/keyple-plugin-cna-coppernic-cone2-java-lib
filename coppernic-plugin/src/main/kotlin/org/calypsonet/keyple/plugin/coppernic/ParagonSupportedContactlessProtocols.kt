@@ -12,12 +12,12 @@
 package org.calypsonet.keyple.plugin.coppernic
 
 enum class ParagonSupportedContactlessProtocols {
-    ISO_14443,
-    ISO_14443_A,
-    ISO_14443_B,
-    INNOVATRON_B_PRIME,
-    TICKET_CTS_CTM,
-    MIFARE,
-    FELICA,
-    MV5000
+  ISO_14443,
+  ISO_14443_A,
+  ISO_14443_B,
+  INNOVATRON_B_PRIME,
+  TICKET_CTS_CTM,
+  MIFARE,
+  FELICA,
+  MV5000
 }

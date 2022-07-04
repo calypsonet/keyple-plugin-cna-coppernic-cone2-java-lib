@@ -20,20 +20,17 @@ import org.eclipse.keyple.core.plugin.spi.PluginSpi
 
 internal class Cone2PluginFactoryAdapter : Cone2PluginFactory, PluginFactorySpi {
 
-    @Throws(ReaderIOException::class)
-    suspend fun init(context: Context): Cone2PluginFactoryAdapter {
-        val plugin = ParagonReader.init(context)
-        return plugin?.let {
-            this
-        }
-        ?: throw ReaderIOException("Could not init Ask Library")
-    }
+  @Throws(ReaderIOException::class)
+  suspend fun init(context: Context): Cone2PluginFactoryAdapter {
+    val plugin = ParagonReader.init(context)
+    return plugin?.let { this } ?: throw ReaderIOException("Could not init Ask Library")
+  }
 
-    override fun getPluginName(): String = Cone2Plugin.PLUGIN_NAME
+  override fun getPluginName(): String = Cone2Plugin.PLUGIN_NAME
 
-    override fun getPlugin(): PluginSpi = Cone2PluginAdapter()
+  override fun getPlugin(): PluginSpi = Cone2PluginAdapter()
 
-    override fun getCommonApiVersion(): String = CommonApiProperties.VERSION
+  override fun getCommonApiVersion(): String = CommonApiProperties.VERSION
 
-    override fun getPluginApiVersion(): String = PluginApiProperties.VERSION
+  override fun getPluginApiVersion(): String = PluginApiProperties.VERSION
 }

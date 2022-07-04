@@ -16,61 +16,49 @@ import org.eclipse.keyple.core.plugin.spi.ObservablePluginSpi
 import org.eclipse.keyple.core.plugin.spi.reader.ReaderSpi
 import timber.log.Timber
 
-/**
- * Handle native Readers mapped for Keyple
- */
+/** Handle native Readers mapped for Keyple */
 internal class Cone2PluginAdapter : Cone2Plugin, ObservablePluginSpi {
 
-    companion object {
-        private const val MONITORING_CYCLE_DURATION_MS = 1000
+  companion object {
+    private const val MONITORING_CYCLE_DURATION_MS = 1000
+  }
+
+  private lateinit var seReaders: ConcurrentHashMap<String, ReaderSpi>
+
+  override fun searchAvailableReaders(): MutableSet<ReaderSpi> {
+
+    Timber.w("searchAvailableReaders")
+    seReaders = ConcurrentHashMap<String, ReaderSpi>()
+
+    val sam1 = Cone2ContactReaderAdapter(Cone2ContactReaderAdapter.ContactInterface.ONE)
+    seReaders[sam1.name] = sam1
+    val sam2 = Cone2ContactReaderAdapter(Cone2ContactReaderAdapter.ContactInterface.TWO)
+    seReaders[sam2.name] = sam2
+    val nfc = Cone2ContactlessReaderAdapter()
+    seReaders[nfc.name] = nfc
+
+    return seReaders.map { it.value }.toMutableSet()
+  }
+
+  override fun searchAvailableReaderNames(): MutableSet<String> {
+    return seReaders.map { it.key }.toMutableSet()
+  }
+
+  override fun searchReader(readerName: String?): ReaderSpi? {
+    return if (seReaders.containsKey(readerName)) {
+      seReaders[readerName]!!
+    } else {
+      null
     }
+  }
 
-    private lateinit var seReaders: ConcurrentHashMap<String, ReaderSpi>
+  override fun getMonitoringCycleDuration(): Int {
+    return MONITORING_CYCLE_DURATION_MS
+  }
 
-    override fun searchAvailableReaders(): MutableSet<ReaderSpi> {
+  override fun getName(): String = Cone2Plugin.PLUGIN_NAME
 
-        Timber.w("searchAvailableReaders")
-        seReaders = ConcurrentHashMap<String, ReaderSpi>()
-
-        val sam1 =
-            Cone2ContactReaderAdapter(
-                Cone2ContactReaderAdapter.ContactInterface.ONE
-            )
-        seReaders[sam1.name] = sam1
-        val sam2 =
-            Cone2ContactReaderAdapter(
-                Cone2ContactReaderAdapter.ContactInterface.TWO
-            )
-        seReaders[sam2.name] = sam2
-        val nfc = Cone2ContactlessReaderAdapter()
-        seReaders[nfc.name] = nfc
-
-        return seReaders.map {
-            it.value
-        }.toMutableSet()
-    }
-
-    override fun searchAvailableReaderNames(): MutableSet<String> {
-        return seReaders.map {
-            it.key
-        }.toMutableSet()
-    }
-
-    override fun searchReader(readerName: String?): ReaderSpi? {
-        return if (seReaders.containsKey(readerName)) {
-            seReaders[readerName]!!
-        } else {
-            null
-        }
-    }
-
-    override fun getMonitoringCycleDuration(): Int {
-        return MONITORING_CYCLE_DURATION_MS
-    }
-
-    override fun getName(): String = Cone2Plugin.PLUGIN_NAME
-
-    override fun onUnregister() {
-        // Do nothing
-    }
+  override fun onUnregister() {
+    // Do nothing
+  }
 }

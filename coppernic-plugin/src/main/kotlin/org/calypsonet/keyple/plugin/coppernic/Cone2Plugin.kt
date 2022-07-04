@@ -14,7 +14,7 @@ package org.calypsonet.keyple.plugin.coppernic
 import org.eclipse.keyple.core.common.KeyplePluginExtension
 
 interface Cone2Plugin : KeyplePluginExtension {
-    companion object {
-        const val PLUGIN_NAME = "Cone2Plugin"
-    }
+  companion object {
+    const val PLUGIN_NAME = "Cone2Plugin"
+  }
 }

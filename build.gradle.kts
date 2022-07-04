@@ -46,7 +46,7 @@ tasks {
     spotless {
         kotlin{
             target("**/*.kt")
-            ktlint()
+            ktfmt()
             licenseHeaderFile("${project.rootDir}/LICENSE_HEADER")
         }
         java {

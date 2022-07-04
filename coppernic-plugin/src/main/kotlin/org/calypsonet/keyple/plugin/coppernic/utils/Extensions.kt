@@ -15,10 +15,11 @@ import kotlin.coroutines.Continuation
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 
-suspend inline fun <T> suspendCoroutineWithTimeout(timeout: Long, crossinline block: (Continuation<T>) -> Unit): T? {
-    var finalValue: T? = null
-    withTimeoutOrNull(timeout) {
-        finalValue = suspendCancellableCoroutine(block = block)
-    }
-    return finalValue
+suspend inline fun <T> suspendCoroutineWithTimeout(
+    timeout: Long,
+    crossinline block: (Continuation<T>) -> Unit
+): T? {
+  var finalValue: T? = null
+  withTimeoutOrNull(timeout) { finalValue = suspendCancellableCoroutine(block = block) }
+  return finalValue
 }

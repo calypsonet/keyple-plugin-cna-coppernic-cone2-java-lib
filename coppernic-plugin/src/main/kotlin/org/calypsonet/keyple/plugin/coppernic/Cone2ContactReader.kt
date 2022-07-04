@@ -14,10 +14,10 @@ package org.calypsonet.keyple.plugin.coppernic
 import org.eclipse.keyple.core.common.KeypleReaderExtension
 
 interface Cone2ContactReader : KeypleReaderExtension {
-    companion object {
-        const val READER_NAME = "Cone2ContactReader"
+  companion object {
+    const val READER_NAME = "Cone2ContactReader"
 
-        const val SAM_READER_1_NAME = "${READER_NAME}_1"
-        const val SAM_READER_2_NAME = "${READER_NAME}_2"
-    }
+    const val SAM_READER_1_NAME = "${READER_NAME}_1"
+    const val SAM_READER_2_NAME = "${READER_NAME}_2"
+  }
 }

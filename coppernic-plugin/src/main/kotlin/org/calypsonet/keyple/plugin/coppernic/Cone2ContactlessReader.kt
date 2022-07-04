@@ -15,27 +15,19 @@ import org.eclipse.keyple.core.common.KeypleReaderExtension
 
 interface Cone2ContactlessReader : KeypleReaderExtension {
 
-    /**
-     * Sets the timeout used in the waitForCardAbsent method
-     */
-    var checkForAbsenceTimeout: Int?
+  /** Sets the timeout used in the waitForCardAbsent method */
+  var checkForAbsenceTimeout: Int?
 
-    /**
-     * Sets the thread wait timeout
-     */
-    var threadWaitTimeout: Int?
+  /** Sets the thread wait timeout */
+  var threadWaitTimeout: Int?
 
-    companion object {
-        const val READER_NAME = "Cone2ContactlessReader"
+  companion object {
+    const val READER_NAME = "Cone2ContactlessReader"
 
-        /**
-         * Default value for CHECK_FOR_ABSENCE_TIMEOUT parameter
-         */
-        const val CHECK_FOR_ABSENCE_TIMEOUT_DEFAULT = 500
+    /** Default value for CHECK_FOR_ABSENCE_TIMEOUT parameter */
+    const val CHECK_FOR_ABSENCE_TIMEOUT_DEFAULT = 500
 
-        /**
-         * Default value for THREAD_WAIT_TIMEOUT parameter
-         */
-        const val THREAD_WAIT_TIMEOUT_DEFAULT = 2000
-    }
+    /** Default value for THREAD_WAIT_TIMEOUT parameter */
+    const val THREAD_WAIT_TIMEOUT_DEFAULT = 2000
+  }
 }
