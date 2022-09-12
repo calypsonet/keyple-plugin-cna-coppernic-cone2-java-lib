@@ -1,5 +1,6 @@
 include(":example-app")
 include(":coppernic-plugin")
+include(":coppernic-plugin-mock")
 rootProject.name = "keyple-plugin-cna-coppernic-cone2-java-lib"
 
 // Fix resolution of dependencies with dynamic version in order to use SNAPSHOT first when available.

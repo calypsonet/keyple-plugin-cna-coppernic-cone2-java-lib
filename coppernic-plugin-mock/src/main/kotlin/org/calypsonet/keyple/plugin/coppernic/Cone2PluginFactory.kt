@@ -1,5 +1,5 @@
 /* **************************************************************************************
- * Copyright (c) 2021 Calypso Networks Association https://calypsonet.org/
+ * Copyright (c) 2022 Calypso Networks Association https://calypsonet.org/
  *
  * See the NOTICE file(s) distributed with this work for additional information
  * regarding copyright ownership.
@@ -9,6 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  ************************************************************************************** */
-package com.calypsonet.keyple.plugin.coppernic
+package org.calypsonet.keyple.plugin.coppernic
 
-class MyClass
+import org.eclipse.keyple.core.common.KeyplePluginExtensionFactory
+
+interface Cone2PluginFactory : KeyplePluginExtensionFactory
